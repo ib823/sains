@@ -1,0 +1,24 @@
+{
+  "env": {
+    "node": true,
+    "es2022": true,
+    "jest": true
+  },
+  "parserOptions": {
+    "ecmaVersion": 2022
+  },
+  "globals": {
+    "SELECT": "readonly",
+    "INSERT": "readonly",
+    "UPDATE": "readonly",
+    "DELETE": "readonly",
+    "CREATE": "readonly",
+    "DROP": "readonly",
+    "cds": "readonly"
+  },
+  "extends": ["eslint:recommended"],
+  "rules": {
+    "no-unused-vars": ["off"],
+    "no-console": "off"
+  }
+}

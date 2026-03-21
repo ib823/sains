@@ -1,0 +1,80 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sains.ar.dunningmanagement",
+    "type": "application",
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": { "version": "2.0.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/ar/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": { "sap.m": {}, "sap.ui.core": {}, "sap.fe.templates": {}, "sap.fe.core": {} }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "settings": { "synchronizationMode": "None", "operationMode": "Server", "autoExpandSelect": true }
+      },
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": { "bundleName": "sains.ar.dunningmanagement.i18n.i18n" }
+      }
+    },
+    "routing": {
+      "config": { "routerClass": "sap.fe.core.AppComponent" },
+      "routes": [
+        { "pattern": "", "name": "DunningAccountsList", "target": "DunningAccountsList" },
+        { "pattern": "PromisesToPay({key})", "name": "PTPObjectPage", "target": "PTPObjectPage" },
+        { "pattern": "PaymentPlans({key})", "name": "PlanObjectPage", "target": "PlanObjectPage" },
+        { "pattern": "WriteOffs({key})", "name": "WriteOffObjectPage", "target": "WriteOffObjectPage" },
+        { "pattern": "FraudAlerts({key})", "name": "FraudAlertObjectPage", "target": "FraudAlertObjectPage" }
+      ],
+      "targets": {
+        "DunningAccountsList": {
+          "type": "Component", "id": "DunningAccountsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "CustomerAccounts",
+              "variantManagement": "Page",
+              "initialLoad": "Auto",
+              "filterSettings": {
+                "hideBasicSearch": false
+              }
+            }
+          }
+        },
+        "PTPObjectPage": {
+          "type": "Component", "id": "PTPObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "PromisesToPay" } }
+        },
+        "PlanObjectPage": {
+          "type": "Component", "id": "PlanObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "PaymentPlans" } }
+        },
+        "WriteOffObjectPage": {
+          "type": "Component", "id": "WriteOffObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "WriteOffs" } }
+        },
+        "FraudAlertObjectPage": {
+          "type": "Component", "id": "FraudAlertObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "FraudAlerts" } }
+        }
+      }
+    }
+  }
+}

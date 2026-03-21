@@ -1,0 +1,22 @@
+{
+  "build": {
+    "target": "gen",
+    "tasks": [
+      { "for": "hana", "src": "db", "options": { "model": ["db","srv","app"] } },
+      { "for": "node-cf", "src": "srv", "options": { "model": ["db","srv","app"] } }
+    ]
+  },
+  "requires": {
+    "[development]": {
+      "db": { "kind": "sqlite", "credentials": { "database": ":memory:" } },
+      "uaa": { "kind": "dummy" }
+    },
+    "[production]": {
+      "db": { "kind": "hana-cloud" },
+      "uaa": { "kind": "xsuaa" },
+      "audit-log": { "kind": "audit-log-service" }
+    }
+  },
+  "i18n": { "default_language": "en", "languages": ["en","ms"] },
+  "sql": { "native_hana_associations": true }
+}

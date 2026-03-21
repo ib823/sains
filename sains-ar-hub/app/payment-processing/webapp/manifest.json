@@ -1,0 +1,71 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sains.ar.paymentprocessing",
+    "type": "application",
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": { "version": "2.0.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/ar/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": { "sap.m": {}, "sap.ui.core": {}, "sap.fe.templates": {}, "sap.fe.core": {} }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "settings": { "synchronizationMode": "None", "operationMode": "Server", "autoExpandSelect": true }
+      },
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": { "bundleName": "sains.ar.paymentprocessing.i18n.i18n" }
+      }
+    },
+    "routing": {
+      "config": { "routerClass": "sap.fe.core.AppComponent" },
+      "routes": [
+        { "pattern": "", "name": "PaymentsList", "target": "PaymentsList" },
+        { "pattern": "Payments({key})", "name": "PaymentsObjectPage", "target": "PaymentsObjectPage" },
+        { "pattern": "CollectionImportBatches({key})", "name": "BatchesObjectPage", "target": "BatchesObjectPage" },
+        { "pattern": "SuspensePayments({key})", "name": "SuspenseObjectPage", "target": "SuspenseObjectPage" },
+        { "pattern": "BankStatementImports({key})", "name": "BankStatementObjectPage", "target": "BankStatementObjectPage" }
+      ],
+      "targets": {
+        "PaymentsList": {
+          "type": "Component", "id": "PaymentsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": { "settings": { "entitySet": "Payments", "variantManagement": "Page" } }
+        },
+        "PaymentsObjectPage": {
+          "type": "Component", "id": "PaymentsObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "Payments" } }
+        },
+        "BatchesObjectPage": {
+          "type": "Component", "id": "BatchesObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "CollectionImportBatches" } }
+        },
+        "SuspenseObjectPage": {
+          "type": "Component", "id": "SuspenseObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "SuspensePayments" } }
+        },
+        "BankStatementObjectPage": {
+          "type": "Component", "id": "BankStatementObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": { "settings": { "entitySet": "BankStatementImports" } }
+        }
+      }
+    }
+  }
+}

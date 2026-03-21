@@ -1,0 +1,97 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sains.ar.provisionreporting",
+    "type": "application",
+    "title": "{{appTitle}}",
+    "description": "{{appTitle}}",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": { "version": "2.0.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/provision/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "fullWidth": false
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.fe.templates": {},
+        "sap.fe.core": {},
+        "sap.ushell": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "settings": {
+          "synchronizationMode": "None",
+          "operationMode": "Server",
+          "autoExpandSelect": true
+        }
+      },
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": { "bundleName": "sains.ar.provisionreporting.i18n.i18n" }
+      }
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.fe.core.AppComponent",
+        "viewType": "XML",
+        "async": true
+      },
+      "routes": [
+        {
+          "pattern": "",
+          "name": "ECLCalculationRunsList",
+          "target": "ECLCalculationRunsList"
+        },
+        {
+          "pattern": "ECLCalculationRuns({key})",
+          "name": "ECLCalculationRunsObjectPage",
+          "target": "ECLCalculationRunsObjectPage"
+        }
+      ],
+      "targets": {
+        "ECLCalculationRunsList": {
+          "type": "Component",
+          "id": "ECLCalculationRunsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "ECLCalculationRuns",
+              "variantManagement": "Page",
+              "initialLoad": "Auto",
+              "navigation": {
+                "ECLCalculationRuns": {
+                  "detail": { "route": "ECLCalculationRunsObjectPage" }
+                }
+              }
+            }
+          }
+        },
+        "ECLCalculationRunsObjectPage": {
+          "type": "Component",
+          "id": "ECLCalculationRunsObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "ECLCalculationRuns",
+              "editableHeaderContent": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

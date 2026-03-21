@@ -1,0 +1,6 @@
+node_modules/
+gen/
+.env.production
+*.env
+.DS_Store
+*.log

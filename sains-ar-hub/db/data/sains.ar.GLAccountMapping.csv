@@ -1,0 +1,12 @@
+transactionType,accountType,chargeType,debitGL,creditGL,profitCentre,description,isActive
+INVOICE,ALL,ALL,120000,400000,COMMON,Default water invoice — AR Dr / Revenue Cr,true
+INVOICE_TAX,ALL,TAX,120000,230000,COMMON,Tax portion of invoice,true
+PAYMENT,ALL,ALL,110000,120000,COMMON,Payment receipt — Bank Dr / AR Cr,true
+ADJUSTMENT_CREDIT,ALL,ALL,400000,120000,COMMON,Credit adjustment — Revenue Dr / AR Cr,true
+ADJUSTMENT_DEBIT,ALL,ALL,120000,400000,COMMON,Debit adjustment — AR Dr / Revenue Cr,true
+DEPOSIT,ALL,ALL,110000,220000,COMMON,Deposit receipt — Bank Dr / Deposit Liability Cr,true
+DEPOSIT_REFUND,ALL,ALL,220000,210000,COMMON,Deposit refund — Deposit Liability Dr / AP Cr,true
+WRITEOFF,ALL,ALL,160000,120000,COMMON,Write-off — Provision Dr / AR Cr,true
+PROVISION,ALL,ALL,700000,160000,COMMON,Provision increase — Expense Dr / Provision Cr,true
+PERIOD_ACCRUAL,ALL,ALL,130000,401000,COMMON,Unbilled accrual — Accrued Revenue Dr / Revenue Cr,true
+PAAB_REMITTANCE,ALL,ALL,240000,250000,COMMON,PAAB remittance — Liability Dr / AP Cr,true

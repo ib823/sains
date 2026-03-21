@@ -1,0 +1,13 @@
+code,name,glAccount,taxCategory,einvoiceRequired,isActive
+WATER_CONSUMPTION,Water Consumption Charge,TBC_WATER_REVENUE,E,false,true
+BASE_CHARGE,Base / Minimum Charge,TBC_WATER_REVENUE,E,false,true
+SEWERAGE,Sewerage Charge,TBC_SEWERAGE_REVENUE,E,false,true
+PAAB,PAAB Pass-Through Charge,TBC_PAAB_LIABILITY,E,false,true
+CONNECTION_FEE,Connection Fee,TBC_CONNECTION_REVENUE,S,true,true
+RECONNECTION_FEE,Reconnection Fee,TBC_CONNECTION_REVENUE,S,true,true
+LATE_PAYMENT,Late Payment Charge,TBC_LATE_PAYMENT_REVENUE,E,false,true
+METER_RENTAL,Meter Rental,TBC_METER_REVENUE,S,true,true
+DEPOSIT_RECEIPT,Security Deposit,TBC_DEPOSIT_LIABILITY,E,false,true
+ADJUSTMENT_CREDIT,Billing Adjustment — Credit,TBC_ADJUSTMENT_REVENUE,E,false,true
+ADJUSTMENT_DEBIT,Billing Adjustment — Debit,TBC_ADJUSTMENT_REVENUE,E,false,true
+LEGAL_FEE,Legal Recovery Fee,TBC_LEGAL_FEE_REVENUE,S,true,true

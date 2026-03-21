@@ -1,0 +1,11 @@
+{
+  "name": "sains-ar-hub-approuter",
+  "description": "SAINS AR Hub — AppRouter",
+  "version": "2.0.0",
+  "dependencies": {
+    "@sap/approuter": "^16.0.0"
+  },
+  "scripts": {
+    "start": "node node_modules/@sap/approuter/approuter.js"
+  }
+}

@@ -1,0 +1,225 @@
+'use strict';
+
+const cds = require('@sap/cds');
+const axios = require('axios');
+const { Decimal } = require('decimal.js');
+const { logSystemAction } = require('../lib/audit-logger');
+
+const logger = cds.log('jompay-adapter');
+
+const JOMPAY_CONFIG = {
+  BILLER_CODE: process.env.JOMPAY_BILLER_CODE
+    || '/* TBC: SAINS JomPAY Biller Code registered with PayNet Malaysia */',
+  ACQUIRER_SFTP_HOST:
+    '/* TBC: Acquiring bank SFTP hostname */',
+  ACQUIRER_SFTP_USER:
+    '/* TBC: Acquiring bank SFTP username */',
+  ACQUIRER_SFTP_KEY_REF:
+    '/* TBC: BTP Credential Store key name for SFTP private key */',
+  ACQUIRER_SFTP_PATH:
+    '/* TBC: Path on bank SFTP server where reconciliation files are deposited */',
+  FILE_FORMAT: 'CSV',   // CSV or FIXED_WIDTH — depends on acquiring bank
+  ENCODING: 'UTF-8',
+};
+
+/**
+ * Download today's JomPAY reconciliation file from acquiring bank SFTP.
+ * File is deposited by the bank by 08:00 MYT covering T-1 transactions.
+ *
+ * @param {Date} fileDate  - Date of transactions (typically yesterday)
+ * @returns {{ success, fileName, rawContent }}
+ */
+async function downloadReconciliationFile(fileDate) {
+  // TBC: Implement SFTP download using ssh2-sftp-client or BTP SFTP Adapter
+  // The acquiring bank provides the SFTP details after JomPAY biller registration.
+  // File naming convention: SAINS_JOMPAY_YYYYMMDD.csv (TBC: confirm with bank)
+
+  const dateStr = fileDate.toISOString().substring(0, 10).replace(/-/g, '');
+  const fileName = `${JOMPAY_CONFIG.BILLER_CODE}_JOMPAY_${dateStr}.csv`;
+
+  logger.info(`JomPAY: downloading reconciliation file ${fileName}`);
+
+  // Stub implementation — replace with actual SFTP client
+  // const sftp = new SFTPClient();
+  // await sftp.connect({ host, port: 22, username, privateKey });
+  // const content = await sftp.get(`${JOMPAY_CONFIG.ACQUIRER_SFTP_PATH}/${fileName}`);
+  // await sftp.end();
+
+  // For now: read from local upload or BTP Object Store
+  // TBC: implement SFTP download
+  throw new Error('JomPAY SFTP download: TBC — implement with ssh2-sftp-client after biller registration');
+}
+
+/**
+ * Parse JomPAY CSV reconciliation file into structured line items.
+ * JomPAY file format (standard PayNet specification):
+ * Column 1: Date (YYYYMMDD)
+ * Column 2: Time (HHMMSS)
+ * Column 3: Bill Reference Number (customer account number)
+ * Column 4: Payer Name
+ * Column 5: Payer Bank FI Code
+ * Column 6: Transaction Amount
+ * Column 7: JomPAY Transaction Reference
+ * Column 8: FPX Transaction ID
+ *
+ * @param {String} csvContent - Raw CSV file content
+ * @returns {Array} Parsed line objects
+ */
+function parseReconciliationFile(csvContent) {
+  const lines = csvContent.trim().split('\n');
+  const parsed = [];
+  let lineSeq = 0;
+
+  for (const line of lines) {
+    if (!line.trim()) continue;
+
+    // Skip header row (starts with "DATE" or "#")
+    if (line.startsWith('DATE') || line.startsWith('#') || line.startsWith('"DATE"')) {
+      continue;
+    }
+
+    // Remove BOM if present
+    const cleanLine = line.replace(/^\uFEFF/, '').trim();
+    const cols = cleanLine.split(',').map(c => c.replace(/^"/, '').replace(/"$/, '').trim());
+
+    if (cols.length < 6) {
+      logger.warn(`JomPAY: skipping malformed line ${lineSeq + 1}: ${line.substring(0, 80)}`);
+      continue;
+    }
+
+    lineSeq++;
+    const rawDate = cols[0]; // YYYYMMDD
+    const rawTime = cols[1]; // HHMMSS
+    const billRef = cols[2];
+    const payerName = cols[3];
+    const payerBank = cols[4];
+    const rawAmount = cols[5];
+    const jomPayRef = cols[6] || '';
+    const fpxToken = cols[7] || '';
+
+    // Parse date
+    const year = rawDate.substring(0, 4);
+    const month = rawDate.substring(4, 6);
+    const day = rawDate.substring(6, 8);
+    const transactionDate = `${year}-${month}-${day}`;
+
+    // Parse time
+    const hh = rawTime.substring(0, 2);
+    const mm = rawTime.substring(2, 4);
+    const ss = rawTime.substring(4, 6);
+    const transactionTime = `${hh}:${mm}:${ss}`;
+
+    // Parse amount — remove commas, convert to Decimal
+    const amount = new Decimal(rawAmount.replace(/,/g, '')).toNumber();
+
+    if (isNaN(amount) || amount <= 0) {
+      logger.warn(`JomPAY: skipping line ${lineSeq} — invalid amount: ${rawAmount}`);
+      continue;
+    }
+
+    if (!billRef || billRef.length < 3) {
+      logger.warn(`JomPAY: skipping line ${lineSeq} — missing bill reference`);
+      continue;
+    }
+
+    parsed.push({
+      lineSequence: lineSeq,
+      transactionDate,
+      transactionTime,
+      billRefNo: billRef,
+      payerName: payerName.substring(0, 100),
+      payerBank: payerBank.substring(0, 10),
+      amount,
+      jomPayRef: jomPayRef.substring(0, 30),
+      fpxMsgToken: fpxToken.substring(0, 50),
+    });
+  }
+
+  logger.info(`JomPAY: parsed ${parsed.length} transactions from file`);
+  return parsed;
+}
+
+/**
+ * Process a JomPAY batch: match each line to a CustomerAccount and
+ * create PaymentOrchestratorEvents for the payment orchestrator to handle.
+ *
+ * @param {String} batchID  - JomPAYBatch.ID
+ * @param {Array}  lines    - Parsed line objects from parseReconciliationFile
+ * @returns {{ matched, suspense, failed }}
+ */
+async function processBatch(batchID, lines) {
+  const db = await cds.connect.to('db');
+  let matched = 0, suspense = 0, failed = 0;
+
+  for (const line of lines) {
+    try {
+      // Resolve account number to CustomerAccount.ID
+      // JomPAY bill reference is configured as the SAINS account number
+      const account = await db.run(
+        SELECT.one.from('sains.ar.CustomerAccount')
+          .columns('ID', 'accountStatus', 'balanceOutstanding')
+          .where({
+            or: [
+              { accountNumber: line.billRefNo },
+              { accountNumber: line.billRefNo.padStart(12, '0') }, // Zero-padded variant
+            ]
+          })
+      );
+
+      const eventID = cds.utils.uuid();
+      const status = account ? 'RESOLVED' : 'SUSPENSE';
+
+      await db.run(INSERT.into('sains.ar.payment.PaymentOrchestratorEvent').entries({
+        ID: eventID,
+        sourceChannel: 'JOMPAY',
+        rawReference: line.jomPayRef || `JOMPAY-${batchID}-${line.lineSequence}`,
+        payerReference: line.billRefNo,
+        resolvedAccountID: account?.ID || null,
+        amount: line.amount,
+        currency: 'MYR',
+        transactionDate: line.transactionDate,
+        transactionTime: line.transactionTime,
+        valueDate: line.transactionDate, // JomPAY settles same day
+        batchID: batchID,
+        status,
+        sourceMetadata: JSON.stringify({
+          billRefNo: line.billRefNo,
+          payerName: line.payerName,
+          payerBank: line.payerBank,
+          jomPayRef: line.jomPayRef,
+          fpxMsgToken: line.fpxMsgToken,
+          lineSequence: line.lineSequence,
+        }),
+      }));
+
+      // Update JomPAY line status
+      await db.run(
+        UPDATE('sains.ar.payment.JomPAYLine').set({
+          status: account ? 'MATCHED' : 'SUSPENSE',
+          resolvedAccountID: account?.ID || null,
+          paymentEventID: eventID,
+          rejectionReason: account ? null
+            : `Account number ${line.billRefNo} not found in SAINS system`,
+        }).where({ batch_ID: batchID, lineSequence: line.lineSequence })
+      );
+
+      if (account) matched++;
+      else suspense++;
+
+    } catch (err) {
+      logger.error(`JomPAY batch ${batchID} line ${line.lineSequence} error: ${err.message}`);
+      await db.run(
+        UPDATE('sains.ar.payment.JomPAYLine').set({
+          status: 'REJECTED',
+          rejectionReason: err.message.substring(0, 255),
+        }).where({ batch_ID: batchID, lineSequence: line.lineSequence })
+      );
+      failed++;
+    }
+  }
+
+  logger.info(`JomPAY batch ${batchID}: matched=${matched} suspense=${suspense} failed=${failed}`);
+  return { matched, suspense, failed };
+}
+
+module.exports = { downloadReconciliationFile, parseReconciliationFile, processBatch };

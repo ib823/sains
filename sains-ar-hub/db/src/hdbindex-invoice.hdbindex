@@ -1,0 +1,5 @@
+INDEX sains_ar_invoice_account_status ON "SAINS_AR_INVOICE"("ACCOUNT_ID","STATUS");
+INDEX sains_ar_invoice_due_status ON "SAINS_AR_INVOICE"("DUEDATE","STATUS");
+INDEX sains_ar_invoice_number ON "SAINS_AR_INVOICE"("INVOICENUMBER");
+INDEX sains_ar_invoice_einvoice ON "SAINS_AR_INVOICE"("EINVOICESTATUS")
+  WHERE "EINVOICESTATUS" IN ('PENDING','HELD_NO_TIN','REJECTED');

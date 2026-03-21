@@ -1,0 +1,97 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sains.ar.analyticsdashboard",
+    "type": "application",
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": { "version": "2.0.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/analytics/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "fullWidth": false
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.fe.templates": {},
+        "sap.fe.core": {},
+        "sap.ushell": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "settings": {
+          "synchronizationMode": "None",
+          "operationMode": "Server",
+          "autoExpandSelect": true
+        }
+      },
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": { "bundleName": "sains.ar.analyticsdashboard.i18n.i18n" }
+      }
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.fe.core.AppComponent",
+        "viewType": "XML",
+        "async": true
+      },
+      "routes": [
+        {
+          "pattern": "",
+          "name": "ARKPISnapshotsList",
+          "target": "ARKPISnapshotsList"
+        },
+        {
+          "pattern": "ARKPISnapshots({key})",
+          "name": "ARKPISnapshotsObjectPage",
+          "target": "ARKPISnapshotsObjectPage"
+        }
+      ],
+      "targets": {
+        "ARKPISnapshotsList": {
+          "type": "Component",
+          "id": "ARKPISnapshotsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "ARKPISnapshots",
+              "variantManagement": "Page",
+              "initialLoad": "Auto",
+              "navigation": {
+                "ARKPISnapshots": {
+                  "detail": { "route": "ARKPISnapshotsObjectPage" }
+                }
+              }
+            }
+          }
+        },
+        "ARKPISnapshotsObjectPage": {
+          "type": "Component",
+          "id": "ARKPISnapshotsObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "ARKPISnapshots",
+              "editableHeaderContent": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

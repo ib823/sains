@@ -1,0 +1,7 @@
+code,name,description
+STD,Standard,Standard credit risk — normal dunning applies
+MED,Medium Risk,Elevated risk — enhanced monitoring
+HIGH,High Risk,High risk — accelerated dunning
+WATCH,Watch List,Under active collections management
+GOVT,Government,Government account — legal route only
+EXEMPT,Exempt,Exempt from standard dunning (hardship or special arrangement)

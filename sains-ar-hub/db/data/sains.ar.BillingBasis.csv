@@ -1,0 +1,5 @@
+code,name,isActive
+MTR,Metered — Actual Read,true
+EST,Metered — Estimated Read,true
+FLAT,Flat Rate — Unmetered,true
+BULK_CALC,Bulk Calculated,true

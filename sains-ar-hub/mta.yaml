@@ -1,0 +1,145 @@
+_schema-version: "3.3"
+ID: sains-ar-hub
+version: 2.0.0
+description: SAINS BTP AR Hub
+
+parameters:
+  enable-parallel-deployments: true
+  deploy_mode: html5-repo
+
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npx cds build --production
+
+modules:
+  - name: sains-ar-hub-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+      disk-quota: 1024M
+      memory: 1024M
+      instances: 2
+    build-parameters:
+      builder: npm
+      build-result: .
+      ignore: ["node_modules/"]
+    provides:
+      - name: srv-api
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: sains-ar-hub-db
+      - name: sains-ar-hub-uaa
+      - name: sains-ar-hub-auditlog
+      - name: sains-ar-hub-destination
+      - name: sains-ar-hub-connectivity
+      - name: sains-ar-hub-alert-notification
+      - name: sains-ar-hub-autoscaler
+
+  - name: sains-ar-hub-db-deployer
+    type: hdb
+    path: gen/db
+    parameters:
+      buildpack: nodejs_buildpack
+    build-parameters:
+      builder: npm
+      ignore: ["node_modules/"]
+    requires:
+      - name: sains-ar-hub-db
+
+  - name: sains-ar-hub-app-router
+    type: approuter.nodejs
+    path: app/router
+    parameters:
+      keep-existing-routes: true
+      disk-quota: 256M
+      memory: 256M
+    build-parameters:
+      builder: npm
+    requires:
+      - name: sains-ar-hub-uaa
+      - name: sains-ar-hub-html5-repo-runtime
+      - name: srv-api
+        group: destinations
+        properties:
+          name: srv-api
+          url: ~{srv-url}
+          forwardAuthToken: true
+
+resources:
+  - name: sains-ar-hub-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+
+  - name: sains-ar-hub-uaa
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: sains-ar-hub-${org}-${space}
+        tenant-mode: dedicated
+
+  - name: sains-ar-hub-auditlog
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: auditlog
+      service-plan: oauth2
+
+  - name: sains-ar-hub-destination
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+
+  - name: sains-ar-hub-connectivity
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: connectivity
+      service-plan: lite
+
+  - name: sains-ar-hub-html5-repo-host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-host
+
+  - name: sains-ar-hub-html5-repo-runtime
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-runtime
+
+  - name: sains-ar-hub-alert-notification
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: alert-notification
+      service-plan: standard
+
+  - name: sains-ar-hub-autoscaler
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: autoscaler
+      service-plan: standard
+      config:
+        instance_min_count: 2
+        instance_max_count: 6
+        scaling_rules:
+          - metric_type: memoryused
+            threshold: 80
+            operator: ">"
+            adjustment: "+1"
+          - metric_type: memoryused
+            threshold: 50
+            operator: "<"
+            adjustment: "-1"
+          - metric_type: cpu
+            threshold: 70
+            operator: ">"
+            adjustment: "+1"

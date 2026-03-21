@@ -1,0 +1,97 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sains.ar.intelligentcollections",
+    "type": "application",
+    "title": "{{appTitle}}",
+    "description": "{{appDescription}}",
+    "i18n": "i18n/i18n.properties",
+    "applicationVersion": { "version": "2.0.0" },
+    "dataSources": {
+      "mainService": {
+        "uri": "/collections/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui": {
+    "technology": "UI5",
+    "fullWidth": false
+  },
+  "sap.ui5": {
+    "dependencies": {
+      "minUI5Version": "1.120.0",
+      "libs": {
+        "sap.m": {},
+        "sap.ui.core": {},
+        "sap.fe.templates": {},
+        "sap.fe.core": {},
+        "sap.ushell": {}
+      }
+    },
+    "models": {
+      "": {
+        "dataSource": "mainService",
+        "settings": {
+          "synchronizationMode": "None",
+          "operationMode": "Server",
+          "autoExpandSelect": true
+        }
+      },
+      "i18n": {
+        "type": "sap.ui.model.resource.ResourceModel",
+        "settings": { "bundleName": "sains.ar.intelligentcollections.i18n.i18n" }
+      }
+    },
+    "routing": {
+      "config": {
+        "routerClass": "sap.fe.core.AppComponent",
+        "viewType": "XML",
+        "async": true
+      },
+      "routes": [
+        {
+          "pattern": "",
+          "name": "CustomerSegmentsList",
+          "target": "CustomerSegmentsList"
+        },
+        {
+          "pattern": "CustomerSegments({key})",
+          "name": "CustomerSegmentsObjectPage",
+          "target": "CustomerSegmentsObjectPage"
+        }
+      ],
+      "targets": {
+        "CustomerSegmentsList": {
+          "type": "Component",
+          "id": "CustomerSegmentsList",
+          "name": "sap.fe.templates.ListReport",
+          "options": {
+            "settings": {
+              "entitySet": "CustomerSegments",
+              "variantManagement": "Page",
+              "initialLoad": "Auto",
+              "navigation": {
+                "CustomerSegments": {
+                  "detail": { "route": "CustomerSegmentsObjectPage" }
+                }
+              }
+            }
+          }
+        },
+        "CustomerSegmentsObjectPage": {
+          "type": "Component",
+          "id": "CustomerSegmentsObjectPage",
+          "name": "sap.fe.templates.ObjectPage",
+          "options": {
+            "settings": {
+              "entitySet": "CustomerSegments",
+              "editableHeaderContent": false
+            }
+          }
+        }
+      }
+    }
+  }
+}

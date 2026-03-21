@@ -1,0 +1,16 @@
+{
+  "SAP_HDI": {
+    "object_owner": {
+      "schema_privileges": [
+        { "reference": "/* TBC: HDI container schema name */",
+          "privileges": ["SELECT","INSERT","UPDATE","DELETE","EXECUTE","CREATE ANY"] }
+      ]
+    },
+    "application_user": {
+      "schema_privileges": [
+        { "reference": "/* TBC: HDI container schema name */",
+          "privileges": ["SELECT","INSERT","UPDATE","DELETE"] }
+      ]
+    }
+  }
+}

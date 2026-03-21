@@ -1,0 +1,130 @@
+{
+  "welcomeFile": "/customer-accounts/index.html",
+  "authenticationMethod": "route",
+  "sessionTimeout": 30,
+  "pluginMetadataEndpoint": "/metadata",
+  "routes": [
+    {
+      "source": "^/ar/(.*)$",
+      "target": "/ar/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/reporting/(.*)$",
+      "target": "/reporting/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/admin/(.*)$",
+      "target": "/admin/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/customer-accounts/(.*)$",
+      "target": "/customer-accounts/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/invoice-management/(.*)$",
+      "target": "/invoice-management/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/payment-processing/(.*)$",
+      "target": "/payment-processing/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/dunning-management/(.*)$",
+      "target": "/dunning-management/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/financial-reporting/(.*)$",
+      "target": "/financial-reporting/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/payment/(.*)$",
+      "target": "/payment/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/collections/(.*)$",
+      "target": "/collections/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/analytics/(.*)$",
+      "target": "/analytics/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/einvoice/(.*)$",
+      "target": "/einvoice/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/provision/(.*)$",
+      "target": "/provision/$1",
+      "destination": "srv-api",
+      "authenticationType": "xsuaa",
+      "csrfProtection": false
+    },
+    {
+      "source": "^/payment-innovation/(.*)$",
+      "target": "/payment-innovation/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/intelligent-collections/(.*)$",
+      "target": "/intelligent-collections/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/analytics-dashboard/(.*)$",
+      "target": "/analytics-dashboard/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/einvoice-excellence/(.*)$",
+      "target": "/einvoice-excellence/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^/provision-reporting/(.*)$",
+      "target": "/provision-reporting/$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    },
+    {
+      "source": "^(.*)$",
+      "target": "$1",
+      "service": "html5-apps-repo-rt",
+      "authenticationType": "xsuaa"
+    }
+  ]
+}

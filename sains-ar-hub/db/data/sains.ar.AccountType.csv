@@ -1,0 +1,9 @@
+code,name,description,isActive
+DOM,Domestic,Residential domestic water accounts,true
+COM_S,Commercial Small,Commercial accounts with consumption below threshold,true
+COM_L,Commercial Large,Commercial accounts with consumption above threshold,true
+IND,Industrial,Industrial process water consumers,true
+GOV,Government,Government and public authority accounts,true
+INST,Institutional,Hospitals schools and public institutions,true
+BULK,Bulk Supply,Bulk supply to sub-utilities or developments,true
+TEMP,Temporary,Construction and temporary connections,true
