@@ -205,6 +205,21 @@ entity CustomerAccount : cuid, managed {
 
   branchCode        : String(10);
 
+  // Phase 3: last payment tracking (maintained by payment-orchestrator)
+  lastPaymentDate      : Date;
+  lastPaymentAmount    : Decimal(15,2);
+
+  // Phase 3: vulnerability cache (from VulnerabilityRecord for dunning engine performance)
+  vulnSeverity         : String(10);     // CRITICAL|HIGH|MEDIUM|LOW
+  vulnCategory         : String(30);
+
+  // Phase 3: WhatsApp opt-out (PDPA compliance)
+  whatsAppOptOut       : Boolean default false;
+  whatsAppOptOutAt     : DateTime;
+
+  // Phase 3: eMandate cancellation flag
+  eMandateCancelledRecently : Boolean default false;
+
   buyerTIN          : String(20);
   buyerTINVerified  : Boolean default false;    // CRITICAL-12
   buyerTINVerifiedDate : DateTime;              // CRITICAL-12
@@ -338,8 +353,8 @@ entity Payment : cuid, managed {
   receivedDateTime  : DateTime not null;
 
   channel           : String(30) not null;
-  // COUNTER_CASH|COUNTER_CHEQUE|COUNTER_CARD|PORTAL_FPX|PORTAL_CARD|
-  // AGENT_COLLECTION|BAYARAN_PUKAL|MANUAL_EFT|DIRECT_DEBIT|SYSTEM_TRANSFER
+  // COUNTER_CASH|COUNTER_CHEQUE|COUNTER_CARD|FPX|DUITNOW_QR|JOMPAY|EMANDATE|
+  // AGENT_COLLECTION|BAYARAN_PUKAL|MANUAL_EFT|SYSTEM_TRANSFER
 
   status            : String(20) not null default 'RECEIVED';
   // RECEIVED|CLEARING_PENDING|ALLOCATED|PARTIALLY_ALLOCATED|UNALLOCATED|REVERSED|BOUNCED|CHARGEBACK
@@ -439,6 +454,9 @@ entity DepositRecord : cuid, managed {
   unclaimed_transferDate: Date;
   unclaimed_registrarRef: String(50);
   notes             : String(500);
+  glStatus          : String(20) default 'PENDING';   // PENDING|POSTED|FAILED
+  glPostedAt        : DateTime;
+  glPostingError    : String(255);
 }
 
 // ─── DUNNING ───────────────────────────────────────────────────────────────
@@ -595,6 +613,9 @@ entity WriteOff : cuid, managed {
   reason           : String(1000) not null;
   collectionHistory: String(2000);
   glPostingRef     : String(30);
+  glStatus         : String(20) default 'PENDING';   // PENDING|POSTED|FAILED
+  glPostedAt       : DateTime;
+  glPostingError   : String(255);
   recoveries       : Composition of many WriteOffRecovery on recoveries.writeOff = $self;
 }
 

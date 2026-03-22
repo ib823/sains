@@ -98,4 +98,76 @@ function reverseAllocation(clearings, invoiceStates) {
   return results;
 }
 
-module.exports = { allocatePayment, reverseAllocation };
+/**
+ * Check if an account was TEMP_DISCONNECTED and has now reached zero balance.
+ * If so, trigger iWRS reconnection notification and update account status.
+ * Called by payment-orchestrator.js after every successful payment allocation.
+ */
+async function checkAndTriggerReconnection(db, accountID, paymentReference) {
+  const account = await db.run(
+    SELECT.one.from('sains.ar.CustomerAccount')
+      .columns('ID', 'accountNumber', 'accountStatus', 'balanceOutstanding', 'balanceDeposit')
+      .where({ ID: accountID })
+  );
+  if (!account) return;
+  if (account.accountStatus !== 'TEMP_DISCONNECTED') return;
+  if (Number(account.balanceOutstanding) > 0) return;
+
+  const logger = cds.log('clearing-engine');
+
+  // ── ATOMIC STATUS TRANSITION ─────────────────────────────────────────────
+  // Attempt to move from TEMP_DISCONNECTED → RECONNECTION_PENDING atomically.
+  // Only one concurrent call wins. The other finds status != TEMP_DISCONNECTED
+  // and exits. This prevents duplicate reconnection work orders.
+  const updateResult = await db.run(
+    UPDATE('sains.ar.CustomerAccount')
+      .set({ accountStatus: 'RECONNECTION_PENDING' })
+      .where({
+        ID: accountID,
+        accountStatus: 'TEMP_DISCONNECTED', // Conditional update — only if still TEMP_DISCONNECTED
+      })
+  );
+
+  if (!updateResult || updateResult === 0) {
+    logger.info(`Reconnection for ${account.accountNumber} already triggered — skipping duplicate`);
+    return;
+  }
+  // ── END ATOMIC STATUS TRANSITION ─────────────────────────────────────────
+
+  // Now safe to proceed — only one caller reaches here
+  await db.run(
+    UPDATE('sains.ar.CustomerAccount')
+      .set({ accountStatus: 'ACTIVE', dunningLevel: 0 })
+      .where({ ID: accountID })
+  );
+
+  // Notify iWRS (non-blocking)
+  try {
+    const iwrsAdapter = require('../external/iwrs-adapter');
+    await iwrsAdapter.notifyReconnection(account, paymentReference, new Date().toISOString());
+  } catch (err) {
+    logger.error(`iWRS reconnection notification failed for ${account.accountNumber}: ${err.message}`);
+  }
+
+  // Create Metis reconnection work order (non-blocking)
+  try {
+    const metisAdapter = require('../external/metis-adapter');
+    await metisAdapter.createReconnectionWorkOrder(account, paymentReference);
+  } catch (err) {
+    logger.error(`Metis reconnection work order failed for ${account.accountNumber}: ${err.message}`);
+  }
+
+  // Audit log
+  try {
+    const { logSystemAction } = require('./audit-logger');
+    await logSystemAction('RECONNECT', 'CustomerAccount', accountID,
+      { status: 'ACTIVE', dunningLevel: 0, trigger: paymentReference },
+      'CLEARING_ENGINE');
+  } catch (err) {
+    logger.error(`Reconnection audit log failed: ${err.message}`);
+  }
+
+  logger.info(`Account ${account.accountNumber} reconnected — payment ${paymentReference} cleared balance`);
+}
+
+module.exports = { allocatePayment, reverseAllocation, checkAndTriggerReconnection };

@@ -257,7 +257,7 @@ const FIXTURES = {
       paymentReference: 'PAY-2026-002',
       paymentDate: '2026-02-10',
       valueDate: '2026-02-10',
-      channel: 'PORTAL_FPX',
+      channel: 'FPX',
       status: 'RECEIVED',
       amount: 200.00,
       amountAllocated: 0,

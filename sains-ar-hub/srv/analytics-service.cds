@@ -40,6 +40,13 @@ service AnalyticsService @(path:'/analytics') {
 
     @(requires:['CFO'])
     action submitToSPAN() returns { submissionRef: String(50); };
+
+    @(requires:['FinanceManager','CFO'])
+    action exportReport(format: String(10) default 'CSV') returns {
+      content  : LargeString;
+      fileName : String(100);
+      mimeType : String(50);
+    };
   };
 
   @readonly

@@ -3,7 +3,12 @@
 const cds = require('@sap/cds');
 const { v4: uuidv4 } = require('uuid');
 const { logAction } = require('../lib/audit-logger');
-const { DEPOSIT_STATUS } = require('../lib/constants');
+const { DEPOSIT_STATUS, SAP_CORE } = require('../lib/constants');
+const { buildDailySummaryBatch, buildJournalEntryPayload } = require('../lib/gl-builder');
+const { postJournalEntry } = require('../external/sap-core-api');
+const { sendSystemAlert } = require('../external/notification-service');
+
+const logger = cds.log('deposit');
 
 module.exports = (srv) => {
 
@@ -55,6 +60,49 @@ module.exports = (srv) => {
 
     await logAction(req, 'APPROVE_REFUND', 'DepositRecord', ID, null,
       { status: 'REFUNDED' }, deposit.account_ID);
+
+    // Phase 3: Post deposit refund to SAP GL (non-blocking — Scenario 1.3)
+    try {
+      const account = await db.run(
+        SELECT.one.from('sains.ar.CustomerAccount')
+          .columns('accountType_code', 'branchCode', 'accountNumber')
+          .where({ ID: deposit.account_ID })
+      );
+      const glMappings = await db.run(
+        SELECT.from('sains.ar.GLAccountMapping').where({ transactionType: 'DEPOSIT_REFUND', isActive: true })
+      );
+      const transactions = [{
+        transactionType: 'DEPOSIT_REFUND', accountTypeCode: account?.accountType_code || 'ALL',
+        chargeTypeCode: 'DEPOSIT', branchCode: account?.branchCode || 'COMMON',
+        amount: deposit.refundAmount || deposit.amount,
+        referenceDocType: 'DEPOSIT_REFUND', referenceDocID: ID,
+        itemText: `Deposit refund for account ${account?.accountNumber}`,
+      }];
+      const postingDate = new Date().toISOString().substring(0, 10);
+      const batch = buildDailySummaryBatch(transactions, glMappings, postingDate, SAP_CORE.COMPANY_CODE);
+      const payload = buildJournalEntryPayload(batch, batch.lines || []);
+      const result = await postJournalEntry(payload, ID);
+      if (result.success) {
+        await db.run(UPDATE('sains.ar.DepositRecord').set({
+          refundAPPostingRef: result.documentNumber,
+          glStatus: 'POSTED',
+          glPostedAt: new Date().toISOString(),
+        }).where({ ID }));
+      }
+    } catch (err) {
+      logger.error(`Deposit refund GL posting failed for ${ID}: ${err.message}`);
+      await db.run(UPDATE('sains.ar.DepositRecord').set({
+        glStatus: 'FAILED',
+        glPostingError: err.message.substring(0, 255),
+      }).where({ ID }));
+      await sendSystemAlert({
+        type: 'GL_POSTING_FAILURE',
+        subject: `Deposit refund GL posting failed — ${ID}`,
+        body: `Deposit refund ${ID} approved but GL posting failed: ${err.message}`,
+        recipients: 'FinanceManager',
+      }).catch(e => logger.error(`GL failure notification failed: ${e.message}`));
+    }
+
     return true;
   });
 

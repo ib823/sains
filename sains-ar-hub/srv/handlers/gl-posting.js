@@ -4,7 +4,10 @@ const cds = require('@sap/cds');
 const { logAction } = require('../lib/audit-logger');
 const { buildJournalEntryPayload, _validateBatchBalance } = require('../lib/gl-builder');
 const { postJournalEntry } = require('../external/sap-core-api');
-const { GL_POSTING_STATUS, GL_POSTING_MAX_RETRIES } = require('../lib/constants');
+const { GL_POSTING_STATUS, GL_POSTING_MAX_RETRIES, SAP_CORE } = require('../lib/constants');
+const { sendSystemAlert } = require('../external/notification-service');
+
+const logger = cds.log('gl-posting');
 
 module.exports = (srv) => {
 
@@ -72,8 +75,50 @@ module.exports = (srv) => {
         submittedAt: new Date().toISOString(),
       }).where({ ID }));
 
+      // Phase 3: GL failure notification (Scenario 11.4)
+      await sendSystemAlert({
+        type: 'GL_POSTING_FAILURE',
+        subject: `GL posting batch FAILED — ${batch.idempotencyKey || ID}`,
+        body: `GL posting batch ${ID} for ${batch.batchDate} failed: ${result.errorMessage}. Download CSV fallback and upload manually to SAP.`,
+        recipients: 'FinanceManager',
+      }).catch(err => logger.error(`GL failure notification failed: ${err.message}`));
+
       return { success: false, sapDocNumber: null, errorMessage: result.errorMessage };
     }
+  });
+
+  // ── Phase 3: downloadBatchCSV (Scenario 1.7 — manual upload fallback) ───
+
+  srv.on('downloadBatchCSV', 'GLPostingBatches', async (req) => {
+    const ID = req.params[0]?.ID ?? req.params[0];
+    const db = await cds.connect.to('db');
+
+    const batch = await db.run(SELECT.one.from('sains.ar.GLPostingBatch').where({ ID }));
+    if (!batch) return req.error(404, 'GL batch not found');
+
+    const lines = await db.run(
+      SELECT.from('sains.ar.GLPostingLine').where({ batch_ID: ID }).orderBy({ lineSequence: 'asc' })
+    );
+
+    const docDate = (batch.batchDate || '').replace(/-/g, '');
+    const companyCode = SAP_CORE.COMPANY_CODE;
+    const docType = SAP_CORE.DOCUMENT_TYPE_AR || 'SA';
+    const reference = (batch.idempotencyKey || ID).substring(0, 16);
+
+    const csvHeaders = 'BUKRS,BLDAT,BUDAT,BLART,XBLNR,BKTXT,HKONT,SHKZG,WRBTR,KOSTL,SGTXT';
+    const csvRows = lines.map(line => {
+      const dc = Number(line.amount) >= 0 ? 'S' : 'H';
+      const amt = Math.abs(Number(line.amount)).toFixed(2);
+      const headerText = (batch.postingType || '').substring(0, 25).replace(/"/g, '""');
+      const itemText = (line.text || '').substring(0, 50).replace(/"/g, '""');
+      return `${companyCode},${docDate},${docDate},${docType},${reference},"${headerText}",${line.glAccount},${dc},${amt},${line.costCentre || ''},"${itemText}"`;
+    });
+
+    const csvContent = [csvHeaders, ...csvRows].join('\n');
+    const fileName = `GL_BATCH_${reference}_${batch.batchDate}.csv`;
+
+    logger.info(`GL batch ${ID} exported to CSV by ${req.user.id} — ${lines.length} lines`);
+    return { csvContent, fileName, lineCount: lines.length };
   });
 
   // ── BEFORE DELETE: guard ──────────────────────────────────────────────

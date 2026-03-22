@@ -54,7 +54,7 @@ async function runPaymentPostTest() {
       account_ID: 'acc-001-dom',
       paymentReference: `PERF-${Date.now()}`,
       paymentDate: new Date().toISOString().substring(0, 10),
-      channel: 'PORTAL_FPX',
+      channel: 'FPX',
       amount: 100.00,
     }),
   });

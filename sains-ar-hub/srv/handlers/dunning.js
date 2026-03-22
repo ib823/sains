@@ -124,6 +124,17 @@ async function _processSingleAccount(db, account, evalDate) {
       });
     }
 
+    // Phase 3: Notify iWRS of disconnection authorisation (non-blocking)
+    if (decision.newDunningLevel >= DUNNING_LEVEL.DISCONNECTED) {
+      try {
+        const iwrsAdapter = require('../external/iwrs-adapter');
+        const authorisationRef = `DISC-AUTH-${Date.now()}`;
+        await iwrsAdapter.notifyDisconnectionAuthorised(account, 'SYSTEM', authorisationRef);
+      } catch (err) {
+        logger.error(`iWRS disconnection notification failed for ${account.accountNumber}: ${err.message}`);
+      }
+    }
+
     return { escalated: true, shouldReset: false };
   }
 

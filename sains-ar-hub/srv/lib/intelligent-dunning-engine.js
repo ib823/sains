@@ -2,7 +2,7 @@
 
 const cds = require('@sap/cds');
 const dayjs = require('dayjs');
-const { DUNNING_THRESHOLDS } = require('./constants');
+const { DUNNING_THRESHOLDS, PAYMENT_CHANNEL } = require('./constants');
 
 const logger = cds.log('intelligent-dunning-engine');
 
@@ -217,7 +217,7 @@ function detectEarlyInterventionSignals(account, recentPayments, recentInvoices)
   // Signal 2: Shift from automated to manual payment
   const recentChannels = recentPayments.slice(0, 3).map(p => p.channel);
   const olderChannels = recentPayments.slice(3, 6).map(p => p.channel);
-  const autoChannels = ['EMANDATE', 'DIRECT_DEBIT', 'STANDING_ORDER'];
+  const autoChannels = [PAYMENT_CHANNEL.EMANDATE, 'STANDING_ORDER'];
   const wasAuto = olderChannels.some(c => autoChannels.includes(c));
   const isNowManual = recentChannels.length > 0 && !recentChannels.some(c => autoChannels.includes(c));
   if (wasAuto && isNowManual) {

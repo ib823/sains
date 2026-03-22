@@ -1,0 +1,6 @@
+node_modules/
+*.zip
+specs/
+phase2-specs/
+phase3-specs/
+.claude/

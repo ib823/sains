@@ -122,4 +122,38 @@ service PaymentInnovationService @(path:'/payment') {
     converted: Integer;
     failed   : Integer;
   };
+
+  // ── Phase 3: FPX Direct Webhook (Scenario 4.6A) ──────────────────────────
+
+  @(requires:['SystemProcess'])
+  action processFPXWebhook(
+    payload: LargeString
+  ) returns {
+    success : Boolean;
+    eventID : UUID;
+    message : String(255);
+  };
+
+  @(requires:['iSAINSServiceAccount','BILStaff'])
+  action initiateFPXPayment(
+    accountNumber : String(20),
+    amount        : Decimal(15,2),
+    invoiceNumber : String(50)
+  ) returns {
+    paymentURL : String(1000);
+    orderNo    : String(50);
+  };
+
+  // ── Phase 3: Bayaran Pukal HTTP POST (Scenario 4.5C) ─────────────────────
+
+  @(requires:['BayaranPukalServiceAccount','SystemProcess'])
+  action receiveBayaranPukalPayment(
+    batchReference : String(50),
+    payload        : LargeString
+  ) returns {
+    batchID    : UUID;
+    lineCount  : Integer;
+    totalAmount: Decimal(18,2);
+    message    : String(255);
+  };
 }

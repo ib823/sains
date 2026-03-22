@@ -18,6 +18,19 @@ const accountChangeHandler = require('./handlers/account-change');
 const glPostingHandler   = require('./handlers/gl-posting');
 const customerAccountHandler = require('./handlers/customer-account');
 const paymentPlanHandler = require('./handlers/payment-plan');
+const authMiddleware = require('./auth-middleware');
+const { customerPortalLimiter, webhookLimiter } = require('./middleware/rate-limiter');
+
+// Register auth middleware and rate limiters before CDS service handlers
+cds.on('bootstrap', app => {
+  // 1. Auth middleware — must be first
+  app.use(authMiddleware);
+
+  // 2. Rate limiters
+  app.use('/portal/', customerPortalLimiter);
+  app.use('/payment/fpx/ipn', webhookLimiter);
+  app.use('/payment/processWebhookNotification', webhookLimiter);
+});
 
 module.exports = cds.service.impl(async function() {
   const srv = this;
@@ -286,6 +299,24 @@ async function _registerScheduledJobs() {
     { name: 'sains-ar-early-intervention', description: 'Weekly early intervention signal scan',
       schedules: [{ cron: '0 0 * * 2' }],
       httpMethod: 'POST', action: `${appUrl}/collections/triggerEarlyInterventionScan` },
+    // Phase 3: Bank statement downloads (3x daily — Scenario 6.1)
+    { name: 'sains-ar-bank-stmt-0800', description: 'Bank statement download 08:00 MYT',
+      schedules: [{ cron: '0 0 * * *' }],
+      httpMethod: 'POST', action: `${appUrl}/integration/downloadBankStatements` },
+    { name: 'sains-ar-bank-stmt-1200', description: 'Bank statement download 12:00 MYT',
+      schedules: [{ cron: '0 4 * * *' }],
+      httpMethod: 'POST', action: `${appUrl}/integration/downloadBankStatements` },
+    { name: 'sains-ar-bank-stmt-1800', description: 'Bank statement download 18:00 MYT',
+      schedules: [{ cron: '0 10 * * *' }],
+      httpMethod: 'POST', action: `${appUrl}/integration/downloadBankStatements` },
+    // Phase 3: PAAB monthly remittance (Scenario 1.6)
+    { name: 'sains-ar-paab-monthly', description: 'Monthly PAAB remittance GL posting',
+      schedules: [{ cron: '0 1 1 * *' }],
+      httpMethod: 'POST', action: `${appUrl}/admin/initiatePaymentProcedure` },
+    // Phase 3: Bayaran Pukal SFTP (Scenario 4.5B)
+    { name: 'sains-ar-bayaran-sftp', description: 'Daily Bayaran Pukal SFTP file download',
+      schedules: [{ cron: '0 2 * * *' }],
+      httpMethod: 'POST', action: `${appUrl}/payment/processBayaranPukalSFTP` },
   ];
 
   for (const job of jobs) {

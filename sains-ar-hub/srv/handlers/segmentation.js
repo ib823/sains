@@ -4,6 +4,7 @@ const cds = require('@sap/cds');
 const dayjs = require('dayjs');
 const { logSystemAction } = require('../lib/audit-logger');
 const { detectEarlyInterventionSignals } = require('../lib/intelligent-dunning-engine');
+const { PAYMENT_CHANNEL } = require('../lib/constants');
 
 const logger = cds.log('segmentation');
 
@@ -188,7 +189,7 @@ function _calculateRuleBasedScore(account, payments, invoices, ptpHistory) {
       channelCounts[a] > channelCounts[b] ? a : b, payments[0]?.channel || 'UNKNOWN');
 
     // Signal 4: eMandate users = more reliable
-    if (preferredChannel === 'EMANDATE') score += 0.15;
+    if (preferredChannel === PAYMENT_CHANNEL.EMANDATE) score += 0.15;
 
     // Signal 5: PTP compliance history
     const honouredPTPs = ptpHistory.filter(p => p.status === 'HONOURED').length;

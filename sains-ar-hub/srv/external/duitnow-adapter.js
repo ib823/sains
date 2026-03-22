@@ -4,6 +4,7 @@ const cds = require('@sap/cds');
 const axios = require('axios');
 const crypto = require('crypto');
 const { logSystemAction } = require('../lib/audit-logger');
+const { PAYMENT_CHANNEL } = require('../lib/constants');
 
 const logger = cds.log('duitnow-adapter');
 
@@ -201,7 +202,7 @@ async function processWebhookNotification(payload) {
 
   await db.run(INSERT.into('sains.ar.payment.PaymentOrchestratorEvent').entries({
     ID: eventID,
-    sourceChannel: 'DUITNOW_QR',
+    sourceChannel: PAYMENT_CHANNEL.DUITNOW_QR,
     rawReference: transactionID || payerRef,
     payerReference: billRef,
     resolvedAccountID: account?.ID || null,

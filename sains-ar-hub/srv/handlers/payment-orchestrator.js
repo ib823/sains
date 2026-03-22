@@ -160,7 +160,11 @@ async function _createPaymentFromEvent(db, event) {
 
   if (totalCleared > 0) {
     await db.run(UPDATE('sains.ar.CustomerAccount')
-      .set({ balanceOutstanding: { '-=': totalCleared } })
+      .set({
+        balanceOutstanding: { '-=': totalCleared },
+        lastPaymentDate: event.transactionDate,
+        lastPaymentAmount: event.amount,
+      })
       .where({ ID: account.ID }));
   }
   if (result.overpaymentAmount > 0) {
@@ -183,6 +187,10 @@ async function _createPaymentFromEvent(db, event) {
     totalCleared,
     orchestratorEventID: event.ID,
   }, account.ID);
+
+  // Check if this payment clears a TEMP_DISCONNECTED account
+  const { checkAndTriggerReconnection } = require('../lib/clearing-engine');
+  await checkAndTriggerReconnection(db, account.ID, event.rawReference);
 
   return paymentID;
 }

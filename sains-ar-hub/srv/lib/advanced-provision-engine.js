@@ -439,7 +439,7 @@ async function extractSustainabilityData(year, month) {
     db.run(`SELECT COUNT(*) AS c FROM "SAINS_AR_COLLECTIONS_VULNERABILITYRECORD"
             WHERE isActive = TRUE`),
     db.run(`SELECT
-              SUM(CASE WHEN channel IN ('FPX','PORTAL_FPX','DUITNOW_QR','JOMPAY','EMANDATE') THEN 1 ELSE 0 END) AS digi,
+              SUM(CASE WHEN channel IN ('FPX','DUITNOW_QR','JOMPAY','EMANDATE') THEN 1 ELSE 0 END) AS digi,
               COUNT(*) AS total
             FROM "SAINS_AR_PAYMENT"
             WHERE paymentDate BETWEEN '${fromDate}' AND '${toDate}'

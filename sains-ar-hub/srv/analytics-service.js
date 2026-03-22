@@ -155,6 +155,42 @@ module.exports = cds.service.impl(async function () {
     return { submissionRef };
   });
 
+  // ── Phase 3: SPAN Report Export (GAP-014) ───────────────────────────
+
+  this.on('exportReport', 'SPANKPIReports', async (req) => {
+    const { ID } = req.params[0];
+    const report = await SELECT.one.from(SPANKPIReport).where({ ID });
+    if (!report) return req.error(404, 'Report not found');
+
+    const format = req.data.format || 'CSV';
+    const periodStr = `${report.reportingYear}-${String(report.reportingMonth).padStart(2, '0')}`;
+
+    if (format === 'CSV') {
+      const headers = [
+        'Reporting Period', 'Total Connections', 'Total Billed (RM)', 'Total Collected (RM)',
+        'Collection Ratio', 'Outstanding Debt (RM)', 'Bad Debt Written Off (RM)',
+        'Bad Debt Provision (RM)', 'Billing Accuracy (%)', 'Complaints Received',
+        'Complaints Resolved', 'Avg Complaint Resolution Days', 'Disconnections', 'Reconnections',
+      ].join(',');
+
+      const dataRow = [
+        `"${periodStr}"`, report.totalConnections, report.totalBilled?.toFixed(2),
+        report.totalCollected?.toFixed(2), ((report.collectionRatio || 0) * 100).toFixed(2) + '%',
+        report.outstandingDebt?.toFixed(2), report.badDebtWrittenOff?.toFixed(2),
+        report.badDebtProvision?.toFixed(2), ((report.billingAccuracyPct || 0) * 100).toFixed(2) + '%',
+        report.complaintsReceived, report.complaintsResolved, report.avgComplaintDays?.toFixed(1),
+        report.disconnectionCount, report.reconnectionCount,
+      ].join(',');
+
+      const content = `${headers}\n${dataRow}`;
+      const fileName = `SAINS_SPAN_KPI_${periodStr}.csv`;
+      logger.info(`SPAN report ${ID} exported as CSV`);
+      return { content, fileName, mimeType: 'text/csv' };
+    }
+
+    req.error(400, 'Excel format: TBC — use CSV format for now');
+  });
+
   // ── JOB TRIGGER ACTIONS ─────────────────────────────────────────────
 
   this.on('triggerKPISnapshot', async (req) => {

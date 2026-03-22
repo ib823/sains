@@ -129,8 +129,9 @@ service ProvisionReportingService @(path:'/provision') {
 
   @(requires:['FinanceManager'])
   action generateAuditorConfirmationLetters(
-    auditYear  : Integer,
-    sampleSize : Integer,
-    minBalance : Decimal(15,2)
+    auditYear    : Integer,
+    sampleSize   : Integer,
+    minBalance   : Decimal(15,2),
+    auditorEmail : String(200)
   ) returns { generated: Integer; };
 }

@@ -26,7 +26,12 @@
     { "name": "$XSAPPNAME.CounterStaff",      "description": "Counter Staff" },
     { "name": "$XSAPPNAME.ICTManager",        "description": "ICT Manager" },
     { "name": "$XSAPPNAME.Auditor",           "description": "External Auditor — read-only" },
-    { "name": "$XSAPPNAME.SystemProcess",     "description": "Automated batch jobs and integrations" }
+    { "name": "$XSAPPNAME.SystemProcess",     "description": "Automated batch jobs and integrations" },
+    { "name": "$XSAPPNAME.iWRSServiceAccount", "description": "iWRS system account scope" },
+    { "name": "$XSAPPNAME.MetisServiceAccount", "description": "Metis system account scope" },
+    { "name": "$XSAPPNAME.Customer", "description": "Authenticated customer — iSAINS portal and mobile app" },
+    { "name": "$XSAPPNAME.iSAINSServiceAccount", "description": "iSAINS portal service account for system-to-system calls" },
+    { "name": "$XSAPPNAME.BayaranPukalServiceAccount", "description": "Bayaran Pukal system service account" }
   ],
   "role-templates": [
     { "name": "FinanceAdmin",     "scope-references": ["$XSAPPNAME.FinanceAdmin"] },
@@ -38,6 +43,11 @@
     { "name": "CounterStaff",     "scope-references": ["$XSAPPNAME.CounterStaff"] },
     { "name": "ICTManager",       "scope-references": ["$XSAPPNAME.ICTManager"] },
     { "name": "Auditor",          "scope-references": ["$XSAPPNAME.Auditor"] },
-    { "name": "SystemProcess",    "scope-references": ["$XSAPPNAME.SystemProcess"] }
+    { "name": "SystemProcess",    "scope-references": ["$XSAPPNAME.SystemProcess"] },
+    { "name": "iWRSServiceAccount", "scope-references": ["$XSAPPNAME.iWRSServiceAccount"] },
+    { "name": "MetisServiceAccount", "scope-references": ["$XSAPPNAME.MetisServiceAccount"] },
+    { "name": "Customer", "scope-references": ["$XSAPPNAME.Customer"] },
+    { "name": "iSAINSServiceAccount", "scope-references": ["$XSAPPNAME.iSAINSServiceAccount","$XSAPPNAME.Customer"] },
+    { "name": "BayaranPukalServiceAccount", "scope-references": ["$XSAPPNAME.BayaranPukalServiceAccount"] }
   ]
 }

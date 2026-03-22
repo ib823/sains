@@ -207,7 +207,7 @@ module.exports = cds.service.impl(async function () {
   // ── GENERATE AUDITOR CONFIRMATION LETTERS ───────────────────────────
 
   this.on('generateAuditorConfirmationLetters', async (req) => {
-    const { auditYear, sampleSize, minBalance } = req.data;
+    const { auditYear, sampleSize, minBalance, auditorEmail } = req.data;
     let generated = 0;
 
     // Sample accounts by balance criteria
@@ -237,7 +237,7 @@ module.exports = cds.service.impl(async function () {
         // Trigger email notification
         try {
           await sendEmail({
-            to: /* TBC: Auditor email address */ account.email || 'auditor@sains.com.my',
+            to: auditorEmail || req.data.auditorEmail || '/* TBC: auditor firm email address */',
             subject: `SAINS - Auditor Confirmation Letter - Account ${account.accountNumber} - Year ${auditYear}`,
             body: `Dear Account Holder,\n\n` +
               `This is a confirmation letter for audit year ${auditYear}.\n` +

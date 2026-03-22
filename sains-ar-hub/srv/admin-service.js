@@ -98,13 +98,38 @@ module.exports = cds.service.impl(async function() {
     });
   });
 
-  // ── PAAB REMITTANCE ───────────────────────────────────────────────────
+  // ── PAAB REMITTANCE (Phase 3: wired to SAP GL — Scenario 1.6) ────────
   srv.on('initiatePaymentProcedure', async (req) => {
     const { remittancePeriod, totalAmount, notes } = req.data;
+    const db = await cds.connect.to('db');
     const glPostingRef = `PAAB-${remittancePeriod}-${Date.now()}`;
+
     await logAction(req, 'INITIATE_PAAB_REMITTANCE', 'AdminConfig', null, null,
       { remittancePeriod, totalAmount, notes, glPostingRef }, null);
-    return { glPostingRef, apDocNumber: null };
+
+    // Build and post GL entry for PAAB remittance
+    try {
+      const glMappings = await db.run(
+        SELECT.from('sains.ar.GLAccountMapping').where({ transactionType: 'PAAB_REMITTANCE', isActive: true })
+      );
+      const { buildDailySummaryBatch } = require('./lib/gl-builder');
+      const { SAP_CORE } = require('./lib/constants');
+      const transactions = [{
+        transactionType: 'PAAB_REMITTANCE', accountTypeCode: 'ALL',
+        chargeTypeCode: 'PAAB', branchCode: 'COMMON',
+        amount: totalAmount, referenceDocType: 'PAAB_REMITTANCE',
+        referenceDocID: glPostingRef,
+        itemText: `PAAB remittance ${remittancePeriod}`,
+      }];
+      const postingDate = new Date().toISOString().substring(0, 10);
+      const batch = buildDailySummaryBatch(transactions, glMappings, postingDate, SAP_CORE.COMPANY_CODE);
+      const payload = buildJournalEntryPayload(batch, batch.lines || []);
+      const result = await postJournalEntry(payload, glPostingRef);
+      return { glPostingRef, apDocNumber: result.success ? result.documentNumber : null };
+    } catch (err) {
+      cds.log('admin-service').error(`PAAB GL posting failed: ${err.message}`);
+      return { glPostingRef, apDocNumber: null };
+    }
   });
 
   // ── TARIFF CHANGE ─────────────────────────────────────────────────────
@@ -140,5 +165,23 @@ module.exports = cds.service.impl(async function() {
       return { valid: false, registeredName: null, message: 'Invalid TIN format' };
     }
     return { valid: true, registeredName: null, message: 'TIN format valid' };
+  });
+
+  // ── Phase 3: Period close step notification (Scenario 11.6) ─────────────
+  srv.after('UPDATE', 'PeriodCloseSteps', async (data, req) => {
+    if (data.status === 'DUE' || data.status === 'PENDING') {
+      try {
+        const { sendEmail } = require('./external/notification-service');
+        await sendEmail({
+          to: data.assignedRole || 'FinanceAdmin',
+          subject: `Period close step due: ${data.stepName} — ${data.periodYear || ''}-${String(data.periodMonth || '').padStart(2, '0')}`,
+          body: `Period close step "${data.stepName}" is now due.\n\n` +
+                `Please complete this step in the AR Hub admin app and mark it done.\n` +
+                `Sign-off required before the period close checklist can be completed.`,
+        });
+      } catch (err) {
+        cds.log('admin-service').error(`Period close notification failed: ${err.message}`);
+      }
+    }
   });
 });

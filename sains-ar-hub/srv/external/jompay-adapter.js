@@ -4,6 +4,7 @@ const cds = require('@sap/cds');
 const axios = require('axios');
 const { Decimal } = require('decimal.js');
 const { logSystemAction } = require('../lib/audit-logger');
+const { PAYMENT_CHANNEL } = require('../lib/constants');
 
 const logger = cds.log('jompay-adapter');
 
@@ -171,7 +172,7 @@ async function processBatch(batchID, lines) {
 
       await db.run(INSERT.into('sains.ar.payment.PaymentOrchestratorEvent').entries({
         ID: eventID,
-        sourceChannel: 'JOMPAY',
+        sourceChannel: PAYMENT_CHANNEL.JOMPAY,
         rawReference: line.jomPayRef || `JOMPAY-${batchID}-${line.lineSequence}`,
         payerReference: line.billRefNo,
         resolvedAccountID: account?.ID || null,

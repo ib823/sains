@@ -5,6 +5,13 @@
   "pluginMetadataEndpoint": "/metadata",
   "routes": [
     {
+      "source": "^/payment/fpx/ipn$",
+      "target": "/payment/processFPXWebhook",
+      "destination": "srv-api",
+      "authenticationType": "none",
+      "csrfProtection": false
+    },
+    {
       "source": "^/ar/(.*)$",
       "target": "/ar/$1",
       "destination": "srv-api",

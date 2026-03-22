@@ -29,6 +29,13 @@ service AdminService @(path:'/admin') {
       sapDocNumber: String(20);
       errorMessage: String(500);
     };
+
+    @(requires:['FinanceAdmin','FinanceManager'])
+    action downloadBatchCSV() returns {
+      csvContent : LargeString;
+      fileName   : String(100);
+      lineCount  : Integer;
+    };
   }
 
   entity PeriodCloseChecklists as projection on ar.PeriodCloseChecklist;

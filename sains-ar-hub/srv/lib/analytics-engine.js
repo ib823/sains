@@ -3,6 +3,7 @@
 const cds = require('@sap/cds');
 const dayjs = require('dayjs');
 const { Decimal } = require('decimal.js');
+const { PAYMENT_CHANNEL } = require('./constants');
 
 const logger = cds.log('analytics-engine');
 
@@ -77,8 +78,8 @@ async function calculateDailyKPISnapshot(snapshotDate = new Date()) {
 
   const channelData = {};
   const totalPayments = channelMix.reduce((s, r) => s + Number(r.total || 0), 0);
-  const digitalChannels = ['FPX', 'PORTAL_FPX', 'PORTAL_CARD', 'DUITNOW_QR',
-    'JOMPAY', 'EMANDATE', 'DIRECT_DEBIT'];
+  const digitalChannels = [PAYMENT_CHANNEL.FPX, PAYMENT_CHANNEL.DUITNOW_QR,
+    PAYMENT_CHANNEL.JOMPAY, PAYMENT_CHANNEL.EMANDATE];
 
   channelMix.forEach(r => { channelData[r.channel] = Number(r.total || 0); });
   const digitalTotal = digitalChannels.reduce((s, c) => s + (channelData[c] || 0), 0);
@@ -138,9 +139,9 @@ async function calculateDailyKPISnapshot(snapshotDate = new Date()) {
     counterPaymentRatio: totalPayments > 0
       ? Math.round(counterTotal / totalPayments * 10000) / 10000 : 0,
     directDebitRatio: totalPayments > 0
-      ? Math.round((channelData['EMANDATE'] || 0) / totalPayments * 10000) / 10000 : 0,
+      ? Math.round((channelData[PAYMENT_CHANNEL.EMANDATE] || 0) / totalPayments * 10000) / 10000 : 0,
     jomPayRatio: totalPayments > 0
-      ? Math.round((channelData['JOMPAY'] || 0) / totalPayments * 10000) / 10000 : 0,
+      ? Math.round((channelData[PAYMENT_CHANNEL.JOMPAY] || 0) / totalPayments * 10000) / 10000 : 0,
     billingAccuracyRate: readTotal > 0
       ? Math.round(readActual / readTotal * 10000) / 10000 : 0,
   };

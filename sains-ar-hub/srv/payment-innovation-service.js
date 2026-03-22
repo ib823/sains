@@ -337,6 +337,18 @@ module.exports = cds.service.impl(async function () {
           submitted++;
         } else {
           failed++;
+          // Phase 3: eMandate return alert (Scenario 11.8)
+          const notif = require('./external/notification-service');
+          await notif.sendSystemAlert({
+            type: 'EMANDATE_RETURN',
+            subject: `Direct debit returned — ${mandate.accountNumber || mandate.ID} (${result.returnCode || 'UNKNOWN'})`,
+            body: `Direct debit for mandate ${mandate.ID} was returned.\n` +
+                  `Return code: ${result.returnCode || 'UNKNOWN'}\n` +
+                  `Reason: ${result.returnReason || 'Not specified'}\n` +
+                  `Amount: RM ${Number(mandate.debitAmount || 0).toFixed(2)}\n\n` +
+                  `Review the mandate in the AR Hub Payment Innovation app.`,
+            recipients: 'FinanceAdmin',
+          }).catch(e => logger.error(`eMandate return alert failed: ${e.message}`));
         }
       } catch (err) {
         logger.error(`Debit instruction failed for mandate ${mandate.ID}: ${err.message}`);
@@ -383,11 +395,16 @@ module.exports = cds.service.impl(async function () {
         status: 'ACTIVE',
         dunningLevel,
         balanceOutstanding: { '>': 0 },
+        whatsAppOptOut: false,
       });
 
     for (const account of accounts) {
       try {
         if (!account.mobilePhone) continue;
+        if (account.whatsAppOptOut === true) {
+          logger.warn(`WhatsApp: skipping opted-out account ${account.accountNumber}`);
+          continue;
+        }
 
         await sendPaymentReminder({
           phoneNumber: account.mobilePhone,
@@ -439,4 +456,98 @@ module.exports = cds.service.impl(async function () {
     logger.info(`Resolved payment events processed: ${result.converted} converted, ${result.failed} failed`);
     return result;
   });
+
+  // ── Phase 3: FPX Direct Webhook (Scenario 4.6A) ──────────────────────────
+
+  this.on('processFPXWebhook', async (req) => {
+    const fpx = require('./external/fpx-adapter');
+    let payload;
+    try {
+      payload = typeof req.data.payload === 'string'
+        ? JSON.parse(req.data.payload)
+        : req.data.payload;
+    } catch {
+      req.error(400, 'Invalid FPX payload JSON');
+      return;
+    }
+
+    if (!fpx.validateIPNSignature(payload)) {
+      logger.error(`FPX IPN: invalid signature for order ${payload.fpx_sellerOrderNo}`);
+      req.error(401, 'FPX IPN signature validation failed');
+      return;
+    }
+
+    return await fpx.processIPNNotification(payload);
+  });
+
+  this.on('initiateFPXPayment', async (req) => {
+    const fpx = require('./external/fpx-adapter');
+    const { accountNumber, amount, invoiceNumber } = req.data;
+    return fpx.buildPaymentInitiationURL(accountNumber, amount, invoiceNumber);
+  });
+
+  // ── Phase 3: Bayaran Pukal HTTP POST (Scenario 4.5C) ─────────────────────
+
+  this.on('receiveBayaranPukalPayment', async (req) => {
+    const db = await cds.connect.to('db');
+    const { batchReference, payload } = req.data;
+
+    let lines;
+    try {
+      lines = typeof payload === 'string' ? JSON.parse(payload) : payload;
+    } catch {
+      req.error(400, 'Invalid Bayaran Pukal payload JSON');
+      return;
+    }
+
+    if (!Array.isArray(lines) || lines.length === 0) {
+      req.error(400, 'Bayaran Pukal payload must be non-empty array');
+      return;
+    }
+
+    const batchID = cds.utils.uuid();
+    const totalAmount = lines.reduce((s, l) => s + Number(l.amount || l.jumlah || 0), 0);
+
+    await db.run(INSERT.into('sains.ar.CollectionImportBatch').entries({
+      ID: batchID,
+      batchDate: new Date().toISOString().substring(0, 10),
+      sourceChannel: 'BAYARAN_PUKAL',
+      sourceReference: batchReference,
+      recordCount: lines.length,
+      totalAmount,
+      status: 'RECEIVED',
+    }));
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      await db.run(INSERT.into('sains.ar.CollectionImportLine').entries({
+        ID: cds.utils.uuid(),
+        batch_ID: batchID,
+        lineSequence: i + 1,
+        sourceAccountRef: line.acc_no || line.accountNumber || line.rujukan || '',
+        amount: Number(line.amount || line.jumlah || 0),
+        paymentDate: line.pay_date || line.tarikh || new Date().toISOString().substring(0, 10),
+        paymentReference: line.ref || line.rujukan_luar || '',
+        channel: 'BAYARAN_PUKAL',
+        status: 'PENDING',
+      }));
+    }
+
+    logger.info(`Bayaran Pukal HTTP POST: batch ${batchReference} — ${lines.length} lines RM ${totalAmount.toFixed(2)}`);
+
+    const notif = require('./external/notification-service');
+    await notif.sendSystemAlert({
+      type: 'BAYARAN_PUKAL_RECEIVED',
+      subject: `Bayaran Pukal batch received — ${batchReference}`,
+      body: `${lines.length} lines totalling RM ${totalAmount.toFixed(2)} via HTTP POST. Review and approve in the AR Hub.`,
+      recipients: 'FinanceAdmin',
+    }).catch(err => logger.error(`Bayaran Pukal alert failed: ${err.message}`));
+
+    return { batchID, lineCount: lines.length, totalAmount, message: 'Batch created — awaiting Finance Admin approval' };
+  });
+
+  // ── Phase 3: eMandate return alert (Scenario 11.8) ────────────────────────
+  // This wires into the existing triggerEmandateDebitRun — add after debit result is RETURNED
+  // (This is handled inside emandate-adapter.js debit processing — alert wiring done in adapter)
+
 });

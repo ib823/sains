@@ -33,11 +33,15 @@
     "dayjs": "^1.11.0",
     "decimal.js": "^10.4.0",
     "express": "^4.18.0",
+    "express-rate-limit": "^8.3.1",
+    "fast-xml-parser": "^5.5.8",
     "mt940-js": "^1.0.0",
+    "node-cron": "^4.2.1",
     "node-forge": "^1.3.1",
     "passport": "^0.7.0",
-    "tslib": "^2.8.1",
     "qrcode": "^1.5.3",
+    "ssh2-sftp-client": "^12.1.0",
+    "tslib": "^2.8.1",
     "uuid": "^9.0.0",
     "winston": "^3.11.0"
   },
@@ -106,6 +110,21 @@
                 "ReportViewer",
                 "SystemAdmin"
               ]
+            },
+            "iwrs-system": {
+              "password": "iwrs-test-password",
+              "roles": ["iWRSServiceAccount", "SystemProcess"]
+            },
+            "metis-system": {
+              "password": "metis-test-password",
+              "roles": ["MetisServiceAccount", "SystemProcess"]
+            },
+            "customer-alice": {
+              "password": "customer-test-password",
+              "roles": ["Customer"],
+              "attr": {
+                "sains_account_numbers": ["10000000001"]
+              }
             }
           }
         }
