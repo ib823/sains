@@ -10,11 +10,11 @@ const { postJournalEntry } = require('../external/sap-core-api');
 const { sendEmail, sendSMS, queuePostalNotice, sendSystemAlert } = require('../external/notification-service');
 const { DUNNING_LEVEL, INVOICE_STATUS, ACCOUNT_STATUS, GL_POSTING_STATUS } = require('../lib/constants');
 
+const logger = cds.log('dunning-job');
 const BATCH_SIZE = 5000;
 
 async function runNightlyDunningJob(date = new Date()) {
   const db = await cds.connect.to('db');
-  const logger = cds.log('dunning-job');
   const evalDate = date;
 
   logger.info(`Dunning batch started for ${dayjs(evalDate).format('YYYY-MM-DD')}`);
@@ -99,29 +99,43 @@ async function _processSingleAccount(db, account, evalDate) {
     }));
 
     if (channels.includes('EMAIL') && account.emailAddress) {
-      await sendEmail({
-        to: account.emailAddress,
-        subject: `[SAINS] ${decision.noticeType} — Account ${account.accountNumber}`,
-        body: `Dear ${account.legalName},\n\nOutstanding: RM${decision.overdueAmount.toFixed(2)}\nOverdue: ${decision.overdueDays} days\n\nPlease contact SAINS.`,
-      });
-      await db.run(UPDATE('sains.ar.DunningHistory').set({ emailSentAt: new Date().toISOString() }).where({ ID: historyID }));
+      try {
+        await sendEmail({
+          to: account.emailAddress,
+          subject: `[SAINS] ${decision.noticeType} — Account ${account.accountNumber}`,
+          body: `Dear ${account.legalName},\n\nOutstanding: RM${decision.overdueAmount.toFixed(2)}\nOverdue: ${decision.overdueDays} days\n\nPlease contact SAINS.`,
+        });
+        await db.run(UPDATE('sains.ar.DunningHistory').set({ emailSentAt: new Date().toISOString() }).where({ ID: historyID }));
+      } catch (err) {
+        logger.error(`Email notification failed for ${account.accountNumber}: ${err.message}`);
+        await db.run(UPDATE('sains.ar.DunningHistory').set({ emailBounced: true }).where({ ID: historyID }))
+          .catch(e => logger.error(`Failed to update dunning history emailBounced: ${e.message}`));
+      }
     }
 
     if (channels.includes('SMS') && account.primaryPhone) {
-      await sendSMS({
-        to: account.primaryPhone,
-        message: `SAINS: ${decision.noticeType} akaun ${account.accountNumber}. Baki: RM${decision.overdueAmount.toFixed(2)}.`,
-      });
-      await db.run(UPDATE('sains.ar.DunningHistory').set({ smsSentAt: new Date().toISOString() }).where({ ID: historyID }));
+      try {
+        await sendSMS({
+          to: account.primaryPhone,
+          message: `SAINS: ${decision.noticeType} akaun ${account.accountNumber}. Baki: RM${decision.overdueAmount.toFixed(2)}.`,
+        });
+        await db.run(UPDATE('sains.ar.DunningHistory').set({ smsSentAt: new Date().toISOString() }).where({ ID: historyID }));
+      } catch (err) {
+        logger.error(`SMS notification failed for ${account.accountNumber}: ${err.message}`);
+      }
     }
 
     if (channels.includes('POSTAL')) {
-      const address = [account.serviceAddress1, account.serviceAddress2,
-        account.serviceCity, account.serviceState, account.servicePostcode].filter(Boolean).join('\n');
-      await queuePostalNotice({
-        accountNumber: account.accountNumber, customerName: account.legalName,
-        address, noticeType: decision.noticeType, dunningHistoryID: historyID,
-      });
+      try {
+        const address = [account.serviceAddress1, account.serviceAddress2,
+          account.serviceCity, account.serviceState, account.servicePostcode].filter(Boolean).join('\n');
+        await queuePostalNotice({
+          accountNumber: account.accountNumber, customerName: account.legalName,
+          address, noticeType: decision.noticeType, dunningHistoryID: historyID,
+        });
+      } catch (err) {
+        logger.error(`Postal notice queueing failed for ${account.accountNumber}: ${err.message}`);
+      }
     }
 
     // Phase 3: Notify iWRS of disconnection authorisation (non-blocking)
@@ -143,7 +157,6 @@ async function _processSingleAccount(db, account, evalDate) {
 
 async function runDailyGLPostingJob(postingDate = new Date()) {
   const db = await cds.connect.to('db');
-  const logger = cds.log('gl-job');
   const dateStr = dayjs(postingDate).subtract(1, 'day').format('YYYY-MM-DD');
   const idempotencyKey = `DAILY_${dateStr}`;
 
@@ -215,7 +228,6 @@ async function runDailyGLPostingJob(postingDate = new Date()) {
 
 async function runPeriodAccrualJob(year, month) {
   const db = await cds.connect.to('db');
-  const logger = cds.log('accrual-job');
 
   // Only run on last day of month
   const lastDay = dayjs(`${year}-${String(month).padStart(2, '0')}-01`).endOf('month');

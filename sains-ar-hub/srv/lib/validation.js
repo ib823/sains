@@ -90,10 +90,15 @@ function validateAdjustment(data, invoiceAmount) {
   const errors = [];
   if (!data.account_ID) errors.push('Account ID is required.');
   if (!data.adjustmentType) errors.push('Adjustment type is required.');
-  if (!data.direction) errors.push('Direction (CREDIT/DEBIT) is required.');
+  if (!data.direction || !['CREDIT', 'DEBIT'].includes(data.direction))
+    errors.push('Direction must be CREDIT or DEBIT.');
   if (!data.amount || data.amount <= 0) errors.push('Amount must be > 0.');
   if (!data.reason || data.reason.trim().length < 10)
     errors.push('Reason must be at least 10 characters.');
+  // Cross-validate adjustment amount against invoice if available
+  if (invoiceAmount != null && data.amount > invoiceAmount) {
+    errors.push(`Adjustment amount RM${data.amount} exceeds invoice total RM${invoiceAmount}.`);
+  }
   return { valid: errors.length === 0, errors };
 }
 

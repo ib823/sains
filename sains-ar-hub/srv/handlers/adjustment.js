@@ -10,7 +10,22 @@ module.exports = (srv) => {
 
   srv.before('CREATE', 'Adjustments', async (req) => {
     const adj = req.data;
-    const result = validateAdjustment(adj);
+
+    // Fetch invoice amount for cross-validation if an original invoice is referenced
+    let invoiceAmount = null;
+    if (adj.originalInvoiceID) {
+      const db = await cds.connect.to('db');
+      const invoice = await db.run(
+        SELECT.one.from('sains.ar.Invoice')
+          .columns('totalAmount', 'amountOutstanding')
+          .where({ ID: adj.originalInvoiceID })
+      );
+      if (invoice) {
+        invoiceAmount = invoice.totalAmount;
+      }
+    }
+
+    const result = validateAdjustment(adj, invoiceAmount);
     throwIfInvalid(result);
 
     adj.status = 'PENDING';
@@ -79,16 +94,31 @@ module.exports = (srv) => {
     if (!adj) return req.error(404, 'Adjustment not found');
     if (adj.status !== 'APPROVED') return req.error(400, 'Adjustment must be approved before posting');
 
-    // Update the referenced invoice balance
+    // Update the referenced invoice balance atomically (avoid read-modify-write race)
     if (adj.originalInvoiceID) {
-      const invoice = await db.run(SELECT.one.from('sains.ar.Invoice').where({ ID: adj.originalInvoiceID }));
-      if (invoice) {
-        const amountChange = adj.direction === 'CREDIT' ? -adj.amount : adj.amount;
-        const newOutstanding = invoice.amountOutstanding + amountChange;
-        await db.run(UPDATE('sains.ar.Invoice').set({
-          amountOutstanding: Math.max(0, newOutstanding),
-          status: newOutstanding <= 0 ? 'CLEARED' : invoice.status,
-        }).where({ ID: adj.originalInvoiceID }));
+      const amountChange = adj.direction === 'CREDIT' ? -adj.amount : adj.amount;
+      await db.run(
+        UPDATE('sains.ar.Invoice')
+          .set({ amountOutstanding: { '+=': amountChange } })
+          .where({ ID: adj.originalInvoiceID })
+      );
+      // Re-read to determine status after atomic update
+      const updatedInvoice = await db.run(
+        SELECT.one.from('sains.ar.Invoice')
+          .columns('ID', 'amountOutstanding', 'status')
+          .where({ ID: adj.originalInvoiceID })
+      );
+      if (updatedInvoice) {
+        const outstanding = Number(updatedInvoice.amountOutstanding);
+        let newStatus = updatedInvoice.status;
+        if (outstanding <= 0) newStatus = 'CLEARED';
+        else if (outstanding > 0 && updatedInvoice.status === 'CLEARED') newStatus = 'OPEN';
+        if (newStatus !== updatedInvoice.status) {
+          // Clamp outstanding to >= 0
+          const setData = { status: newStatus };
+          if (outstanding < 0) setData.amountOutstanding = 0;
+          await db.run(UPDATE('sains.ar.Invoice').set(setData).where({ ID: adj.originalInvoiceID }));
+        }
       }
     }
 

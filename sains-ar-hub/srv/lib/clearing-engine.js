@@ -69,33 +69,38 @@ function allocatePayment(payment, invoices) {
 }
 
 function reverseAllocation(clearings, invoiceStates) {
-  const results = [];
+  const invoiceRollbacks = [];
+  let totalReversed = 0;
 
   for (const cl of clearings) {
     // Skip overpayment credit records (no invoiceID)
     if (!cl.invoiceID && !cl.invoice_ID) continue;
 
     const invID = cl.invoiceID || cl.invoice_ID;
+    const clearedAmount = Number(cl.clearedAmount || 0);
+    totalReversed += clearedAmount;
+
     const inv = (invoiceStates || []).find(i => i.ID === invID);
     if (inv) {
-      const newAmountCleared = (inv.amountCleared || 0) - cl.clearedAmount;
-      const newAmountOutstanding = (inv.amountOutstanding || 0) + cl.clearedAmount;
+      const newAmountCleared = (inv.amountCleared || 0) - clearedAmount;
+      const newAmountOutstanding = (inv.amountOutstanding || 0) + clearedAmount;
       const newStatus = newAmountCleared <= 0 ? INVOICE_STATUS.OPEN : INVOICE_STATUS.PARTIAL;
-      results.push({
-        invoiceID: cl.invoiceID,
+      invoiceRollbacks.push({
+        invoiceID: invID,
+        amountToRestore: clearedAmount,
         newStatus,
         newAmountOutstanding,
         newAmountCleared: Math.max(0, newAmountCleared),
       });
     } else {
-      results.push({
-        invoiceID: cl.invoiceID || cl.invoice_ID,
-        amountToRestore: cl.clearedAmount,
+      invoiceRollbacks.push({
+        invoiceID: invID,
+        amountToRestore: clearedAmount,
       });
     }
   }
 
-  return results;
+  return { invoiceRollbacks, totalReversed };
 }
 
 /**
@@ -116,15 +121,15 @@ async function checkAndTriggerReconnection(db, accountID, paymentReference) {
   const logger = cds.log('clearing-engine');
 
   // ── ATOMIC STATUS TRANSITION ─────────────────────────────────────────────
-  // Attempt to move from TEMP_DISCONNECTED → RECONNECTION_PENDING atomically.
+  // Attempt to move from TEMP_DISCONNECTED → ACTIVE atomically in a single UPDATE.
   // Only one concurrent call wins. The other finds status != TEMP_DISCONNECTED
-  // and exits. This prevents duplicate reconnection work orders.
+  // and exits. This prevents duplicate reconnection work orders and notifications.
   const updateResult = await db.run(
     UPDATE('sains.ar.CustomerAccount')
-      .set({ accountStatus: 'RECONNECTION_PENDING' })
+      .set({ accountStatus: 'ACTIVE', dunningLevel: 0 })
       .where({
         ID: accountID,
-        accountStatus: 'TEMP_DISCONNECTED', // Conditional update — only if still TEMP_DISCONNECTED
+        accountStatus: 'TEMP_DISCONNECTED',
       })
   );
 
@@ -133,13 +138,6 @@ async function checkAndTriggerReconnection(db, accountID, paymentReference) {
     return;
   }
   // ── END ATOMIC STATUS TRANSITION ─────────────────────────────────────────
-
-  // Now safe to proceed — only one caller reaches here
-  await db.run(
-    UPDATE('sains.ar.CustomerAccount')
-      .set({ accountStatus: 'ACTIVE', dunningLevel: 0 })
-      .where({ ID: accountID })
-  );
 
   // Notify iWRS (non-blocking)
   try {

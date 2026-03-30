@@ -49,7 +49,19 @@ module.exports = (srv) => {
   // ── AFTER CREATE ──────────────────────────────────────────────────────
   srv.after('CREATE', 'Payments', async (payment, req) => {
     if (payment.status === PAYMENT_STATUS.CLEARING_PENDING) return;
-    await _allocateAndPersist(payment, req);
+    try {
+      await _allocateAndPersist(payment, req);
+    } catch (err) {
+      const allocLogger = cds.log('payment-allocation');
+      allocLogger.error(`Payment allocation failed for ${payment.ID}: ${err.message}`);
+      // Payment is created but unallocated — mark as UNALLOCATED so it can be retried
+      const db = await cds.connect.to('db');
+      await db.run(UPDATE('sains.ar.Payment').set({
+        status: PAYMENT_STATUS.UNALLOCATED,
+      }).where({ ID: payment.ID })).catch(e =>
+        allocLogger.error(`Failed to update payment status to UNALLOCATED: ${e.message}`)
+      );
+    }
   });
 
   // ── CONFIRM CHEQUE CLEARED ────────────────────────────────────────────
@@ -121,19 +133,23 @@ module.exports = (srv) => {
       isPartial: allocateAmount < invoice.amountOutstanding,
     }));
 
-    const newInvOutstanding = invoice.amountOutstanding - allocateAmount;
+    // Use atomic operations to avoid read-modify-write race conditions
     await db.run(UPDATE('sains.ar.Invoice').set({
-      amountCleared: invoice.amountCleared + allocateAmount,
-      amountOutstanding: newInvOutstanding,
-      status: newInvOutstanding === 0 ? INVOICE_STATUS.CLEARED : INVOICE_STATUS.PARTIAL,
+      amountCleared: { '+=': allocateAmount },
+      amountOutstanding: { '-=': allocateAmount },
     }).where({ ID: invoiceID }));
+    // Re-read to determine status after atomic update
+    const updatedInv = await db.run(SELECT.one.from('sains.ar.Invoice').columns('amountOutstanding').where({ ID: invoiceID }));
+    const invStatus = Number(updatedInv?.amountOutstanding) <= 0 ? INVOICE_STATUS.CLEARED : INVOICE_STATUS.PARTIAL;
+    await db.run(UPDATE('sains.ar.Invoice').set({ status: invStatus }).where({ ID: invoiceID }));
 
-    const newPayUnallocated = payment.amountUnallocated - allocateAmount;
     await db.run(UPDATE('sains.ar.Payment').set({
-      amountAllocated: payment.amountAllocated + allocateAmount,
-      amountUnallocated: newPayUnallocated,
-      status: newPayUnallocated === 0 ? PAYMENT_STATUS.ALLOCATED : PAYMENT_STATUS.PARTIALLY_ALLOCATED,
+      amountAllocated: { '+=': allocateAmount },
+      amountUnallocated: { '-=': allocateAmount },
     }).where({ ID }));
+    const updatedPay = await db.run(SELECT.one.from('sains.ar.Payment').columns('amountUnallocated').where({ ID }));
+    const payStatus = Number(updatedPay?.amountUnallocated) <= 0 ? PAYMENT_STATUS.ALLOCATED : PAYMENT_STATUS.PARTIALLY_ALLOCATED;
+    await db.run(UPDATE('sains.ar.Payment').set({ status: payStatus }).where({ ID }));
 
     await logAction(req, 'MANUAL_ALLOCATE', 'Payment', ID, null,
       { invoiceID, allocateAmount }, payment.account_ID);
@@ -151,21 +167,25 @@ module.exports = (srv) => {
     if (payment.status === PAYMENT_STATUS.REVERSED)
       return req.error(400, 'Payment already reversed');
 
-    // Reverse allocations
+    // Reverse allocations — fetch invoice states so reverseAllocation can compute precise rollbacks
     const clearings = await db.run(
       SELECT.from('sains.ar.PaymentClearing').where({ payment_ID: ID })
     );
-    const { invoiceRollbacks, totalReversed } = reverseAllocation(clearings);
+    const invoiceIDs = clearings
+      .map(cl => cl.invoiceID || cl.invoice_ID)
+      .filter(Boolean);
+    const invoiceStates = invoiceIDs.length > 0
+      ? await db.run(SELECT.from('sains.ar.Invoice').where({ ID: { in: invoiceIDs } }))
+      : [];
+    const { invoiceRollbacks, totalReversed } = reverseAllocation(clearings, invoiceStates);
 
     for (const rb of invoiceRollbacks) {
-      const inv = await db.run(SELECT.one.from('sains.ar.Invoice').where({ ID: rb.invoiceID }));
-      if (inv) {
-        await db.run(UPDATE('sains.ar.Invoice').set({
-          amountCleared: inv.amountCleared - rb.amountToRestore,
-          amountOutstanding: inv.amountOutstanding + rb.amountToRestore,
-          status: INVOICE_STATUS.OPEN,
-        }).where({ ID: rb.invoiceID }));
-      }
+      // Use atomic operations to avoid read-modify-write race
+      await db.run(UPDATE('sains.ar.Invoice').set({
+        amountCleared: { '-=': rb.amountToRestore },
+        amountOutstanding: { '+=': rb.amountToRestore },
+        status: rb.newStatus || INVOICE_STATUS.OPEN,
+      }).where({ ID: rb.invoiceID }));
     }
 
     // Delete clearings
@@ -221,6 +241,7 @@ module.exports = (srv) => {
   srv.on('processBatch', 'CollectionImportBatches', async (req) => {
     const ID = req.params[0]?.ID ?? req.params[0];
     const db = await cds.connect.to('db');
+    const batchLogger = cds.log('batch-processor');
 
     const batch = await db.run(SELECT.one.from('sains.ar.CollectionImportBatch').where({ ID }));
     if (!batch) return req.error(404, 'Batch not found');
@@ -230,35 +251,46 @@ module.exports = (srv) => {
     );
 
     let processed = 0, failed = 0, suspense = 0;
+    let processedAmount = 0;
 
     for (const line of lines) {
-      const account = await db.run(
-        SELECT.one.from('sains.ar.CustomerAccount')
-          .where({ accountNumber: line.sourceAccountRef })
-      );
-
-      if (!account) {
-        // Route to suspense
-        const suspenseID = uuidv4();
-        await db.run(INSERT.into('sains.ar.SuspensePayment').entries({
-          ID: suspenseID,
-          sourceChannel: batch.sourceChannel,
-          sourceBatchRef: batch.sourceReference,
-          sourceLineRef: String(line.lineSequence),
-          sourceAccountRef: line.sourceAccountRef,
-          amount: line.amount,
-          paymentDate: line.paymentDate,
-          paymentReference: line.paymentReference,
-          status: 'PENDING',
-        }));
-        await db.run(UPDATE('sains.ar.CollectionImportLine').set({
-          status: 'SUSPENSE', suspensePaymentID: suspenseID,
-        }).where({ ID: line.ID }));
-        suspense++;
-        continue;
-      }
-
       try {
+        // Validate line data before processing
+        if (!line.sourceAccountRef || !line.amount || line.amount <= 0 || !line.paymentDate) {
+          await db.run(UPDATE('sains.ar.CollectionImportLine').set({
+            status: 'FAILED',
+            rejectionReason: 'Invalid line data: missing sourceAccountRef, amount, or paymentDate',
+          }).where({ ID: line.ID }));
+          failed++;
+          continue;
+        }
+
+        const account = await db.run(
+          SELECT.one.from('sains.ar.CustomerAccount')
+            .where({ accountNumber: line.sourceAccountRef })
+        );
+
+        if (!account) {
+          // Route to suspense — wrapped in transaction so both writes succeed or neither
+          const suspenseID = uuidv4();
+          await db.run(INSERT.into('sains.ar.SuspensePayment').entries({
+            ID: suspenseID,
+            sourceChannel: batch.sourceChannel,
+            sourceBatchRef: batch.sourceReference,
+            sourceLineRef: String(line.lineSequence),
+            sourceAccountRef: line.sourceAccountRef,
+            amount: line.amount,
+            paymentDate: line.paymentDate,
+            paymentReference: line.paymentReference,
+            status: 'PENDING',
+          }));
+          await db.run(UPDATE('sains.ar.CollectionImportLine').set({
+            status: 'SUSPENSE', suspensePaymentID: suspenseID,
+          }).where({ ID: line.ID }));
+          suspense++;
+          continue;
+        }
+
         const paymentID = uuidv4();
         await db.run(INSERT.into('sains.ar.Payment').entries({
           ID: paymentID,
@@ -279,10 +311,16 @@ module.exports = (srv) => {
           status: 'PROCESSED', resolvedAccountID: account.ID, processedPaymentID: paymentID,
         }).where({ ID: line.ID }));
         processed++;
+        processedAmount += Number(line.amount);
       } catch (err) {
-        await db.run(UPDATE('sains.ar.CollectionImportLine').set({
-          status: 'FAILED', rejectionReason: err.message,
-        }).where({ ID: line.ID }));
+        batchLogger.error(`Batch ${ID} line ${line.lineSequence} failed: ${err.message}`);
+        try {
+          await db.run(UPDATE('sains.ar.CollectionImportLine').set({
+            status: 'FAILED', rejectionReason: (err.message || 'Unknown error').substring(0, 255),
+          }).where({ ID: line.ID }));
+        } catch (updateErr) {
+          batchLogger.error(`Failed to update line ${line.ID} status: ${updateErr.message}`);
+        }
         failed++;
       }
     }
@@ -290,7 +328,7 @@ module.exports = (srv) => {
     await db.run(UPDATE('sains.ar.CollectionImportBatch').set({
       status: 'PROCESSED',
       processedCount: processed,
-      processedAmount: lines.filter((_, i) => i < processed).reduce((s, l) => s + l.amount, 0),
+      processedAmount,
       failedCount: failed,
       suspenseCount: suspense,
     }).where({ ID }));

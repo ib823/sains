@@ -68,36 +68,40 @@ module.exports = (srv) => {
 
   // ── AFTER CREATE: balance update, meter history ───────────────────────
   srv.after('CREATE', 'Invoices', async (invoice, req) => {
+    const invoiceLogger = cds.log('invoice-handler');
     const db = await cds.connect.to('db');
 
-    // Update account balance
-    const account = await db.run(
-      SELECT.one.from('sains.ar.CustomerAccount').where({ ID: invoice.account_ID })
-    );
-    if (account) {
-      const newBalance = (account.balanceOutstanding || 0) + invoice.totalAmount;
+    // Update account balance atomically
+    try {
       await db.run(
         UPDATE('sains.ar.CustomerAccount')
-          .set({ balanceOutstanding: newBalance })
+          .set({ balanceOutstanding: { '+=': invoice.totalAmount } })
           .where({ ID: invoice.account_ID })
       );
+    } catch (err) {
+      invoiceLogger.error(`Failed to update account balance for invoice ${invoice.ID}: ${err.message}`);
     }
 
     // Insert meter read history if metered
     if (invoice.meterReadCurrent && invoice.consumptionM3) {
-      await db.run(INSERT.into('sains.ar.MeterReadHistory').entries({
-        ID: uuidv4(),
-        account_ID: invoice.account_ID,
-        readDate: invoice.invoiceDate,
-        readType: invoice.meterReadType || 'ACTUAL',
-        readingM3: invoice.meterReadCurrent,
-        consumptionM3: invoice.consumptionM3,
-        sourceSystem: invoice.sourceSystem,
-        invoiceID: invoice.ID,
-      }));
+      try {
+        await db.run(INSERT.into('sains.ar.MeterReadHistory').entries({
+          ID: uuidv4(),
+          account_ID: invoice.account_ID,
+          readDate: invoice.invoiceDate,
+          readType: invoice.meterReadType || 'ACTUAL',
+          readingM3: invoice.meterReadCurrent,
+          consumptionM3: invoice.consumptionM3,
+          sourceSystem: invoice.sourceSystem,
+          invoiceID: invoice.ID,
+        }));
+      } catch (err) {
+        invoiceLogger.error(`Failed to insert meter read history for invoice ${invoice.ID}: ${err.message}`);
+      }
     }
 
-    await logAction(req, 'CREATE_INVOICE', 'Invoice', invoice.ID, null, invoice, invoice.account_ID);
+    await logAction(req, 'CREATE_INVOICE', 'Invoice', invoice.ID, null, invoice, invoice.account_ID)
+      .catch(err => invoiceLogger.error(`Audit log failed for invoice ${invoice.ID}: ${err.message}`));
   });
 
   // ── BEFORE DELETE: block ──────────────────────────────────────────────

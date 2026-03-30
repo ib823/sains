@@ -80,19 +80,22 @@ describe('ClearingEngine — Unit Tests', () => {
     test('restores invoice to OPEN after full clearing is reversed', () => {
       const clearing = [{ invoiceID: 'inv-001', clearedAmount: 100.00, clearingType: 'EXACT_MATCH' }];
       const invoiceState = [{ ID: 'inv-001', totalAmount: 100.00, amountCleared: 100.00, amountOutstanding: 0 }];
-      const undos = reverseAllocation(clearing, invoiceState);
-      expect(undos[0].newStatus).toBe('OPEN');
-      expect(undos[0].newAmountOutstanding).toBe(100.00);
-      expect(undos[0].newAmountCleared).toBe(0);
+      const { invoiceRollbacks, totalReversed } = reverseAllocation(clearing, invoiceState);
+      expect(invoiceRollbacks[0].newStatus).toBe('OPEN');
+      expect(invoiceRollbacks[0].newAmountOutstanding).toBe(100.00);
+      expect(invoiceRollbacks[0].newAmountCleared).toBe(0);
+      expect(invoiceRollbacks[0].amountToRestore).toBe(100.00);
+      expect(totalReversed).toBe(100.00);
     });
 
     test('restores invoice to PARTIAL after partial clearing is reversed', () => {
       const clearing = [{ invoiceID: 'inv-003', clearedAmount: 50.00, clearingType: 'FIFO' }];
       const invoiceState = [{ ID: 'inv-003', totalAmount: 150.00, amountCleared: 120.00, amountOutstanding: 30.00 }];
-      const undos = reverseAllocation(clearing, invoiceState);
-      expect(undos[0].newStatus).toBe('PARTIAL');
-      expect(undos[0].newAmountCleared).toBe(70.00);
-      expect(undos[0].newAmountOutstanding).toBe(80.00);
+      const { invoiceRollbacks, totalReversed } = reverseAllocation(clearing, invoiceState);
+      expect(invoiceRollbacks[0].newStatus).toBe('PARTIAL');
+      expect(invoiceRollbacks[0].newAmountCleared).toBe(70.00);
+      expect(invoiceRollbacks[0].newAmountOutstanding).toBe(80.00);
+      expect(totalReversed).toBe(50.00);
     });
 
     test('skips overpayment credit clearing records (no invoiceID)', () => {
@@ -101,9 +104,38 @@ describe('ClearingEngine — Unit Tests', () => {
         { invoiceID: null, clearedAmount: 50.00, clearingType: 'OVERPAYMENT_CREDIT' },
       ];
       const invoiceState = [{ ID: 'inv-001', totalAmount: 100.00, amountCleared: 100.00, amountOutstanding: 0 }];
-      const undos = reverseAllocation(clearings, invoiceState);
-      expect(undos.length).toBe(1);
-      expect(undos[0].invoiceID).toBe('inv-001');
+      const { invoiceRollbacks } = reverseAllocation(clearings, invoiceState);
+      expect(invoiceRollbacks.length).toBe(1);
+      expect(invoiceRollbacks[0].invoiceID).toBe('inv-001');
+    });
+
+    test('returns amountToRestore when invoiceStates not provided (fallback path)', () => {
+      const clearings = [
+        { invoiceID: 'inv-001', clearedAmount: 100.00, clearingType: 'EXACT_MATCH' },
+        { invoice_ID: 'inv-002', clearedAmount: 50.00, clearingType: 'FIFO' },
+      ];
+      const { invoiceRollbacks, totalReversed } = reverseAllocation(clearings);
+      expect(invoiceRollbacks.length).toBe(2);
+      expect(invoiceRollbacks[0].amountToRestore).toBe(100.00);
+      expect(invoiceRollbacks[1].amountToRestore).toBe(50.00);
+      expect(totalReversed).toBe(150.00);
+    });
+
+    test('totalReversed sums all cleared amounts across multiple clearings', () => {
+      const clearings = [
+        { invoiceID: 'inv-001', clearedAmount: 100.00 },
+        { invoiceID: 'inv-002', clearedAmount: 75.50 },
+        { invoiceID: 'inv-003', clearedAmount: 24.50 },
+      ];
+      const invoiceState = [
+        { ID: 'inv-001', amountCleared: 100.00, amountOutstanding: 0 },
+        { ID: 'inv-002', amountCleared: 75.50, amountOutstanding: 0 },
+        { ID: 'inv-003', amountCleared: 24.50, amountOutstanding: 0 },
+      ];
+      const { invoiceRollbacks, totalReversed } = reverseAllocation(clearings, invoiceState);
+      expect(totalReversed).toBe(200.00);
+      expect(invoiceRollbacks.length).toBe(3);
+      invoiceRollbacks.forEach(rb => expect(rb.newStatus).toBe('OPEN'));
     });
   });
 });

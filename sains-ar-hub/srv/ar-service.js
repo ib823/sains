@@ -20,6 +20,16 @@ const customerAccountHandler = require('./handlers/customer-account');
 const paymentPlanHandler = require('./handlers/payment-plan');
 const authMiddleware = require('./auth-middleware');
 const { customerPortalLimiter, webhookLimiter } = require('./middleware/rate-limiter');
+const { validateEnvironment } = require('./lib/env-validation');
+
+// Validate environment on module load (before any requests)
+try {
+  validateEnvironment();
+} catch (err) {
+  // In production this will prevent startup; in dev it logs warnings
+  if (process.env.NODE_ENV === 'production') throw err;
+  cds.log('ar-service').error(`Environment validation: ${err.message}`);
+}
 
 // Register auth middleware and rate limiters before CDS service handlers
 cds.on('bootstrap', app => {

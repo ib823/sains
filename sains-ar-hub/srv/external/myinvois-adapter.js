@@ -43,18 +43,35 @@ const MYINVOIS_CONFIG = {
 };
 
 // Token cache — reuse for up to 50 minutes (token valid 60 min)
+// Uses a pending-promise pattern to prevent concurrent duplicate token requests
 let _tokenCache = null;
 let _tokenExpiry = null;
+let _tokenPending = null;
 
 /**
  * Get OAuth2 access token for LHDN MyInvois API.
  * Tokens are cached for 50 minutes (LHDN tokens valid for 60 minutes).
+ * Concurrent callers share a single in-flight token request.
  */
 async function getAccessToken() {
   if (_tokenCache && _tokenExpiry && new Date() < _tokenExpiry) {
     return _tokenCache;
   }
 
+  // If a token request is already in-flight, wait for it instead of issuing a duplicate
+  if (_tokenPending) {
+    return _tokenPending;
+  }
+
+  _tokenPending = _fetchToken();
+  try {
+    return await _tokenPending;
+  } finally {
+    _tokenPending = null;
+  }
+}
+
+async function _fetchToken() {
   try {
     const response = await axios.post(
       `${MYINVOIS_CONFIG.BASE_URL}/connect/token`,
@@ -75,6 +92,9 @@ async function getAccessToken() {
     return _tokenCache;
 
   } catch (error) {
+    // Clear cache on error so next call retries
+    _tokenCache = null;
+    _tokenExpiry = null;
     const msg = error.response?.data?.error_description || error.message;
     throw new Error(`MyInvois token error: ${msg}`);
   }

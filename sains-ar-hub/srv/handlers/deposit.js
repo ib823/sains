@@ -138,17 +138,26 @@ module.exports = (srv) => {
       notes: reason,
     }).where({ ID }));
 
-    // Update account balances
-    const updates = {
-      balanceDeposit: account.balanceDeposit - deposit.amount,
-    };
+    // Update account balances atomically to avoid race conditions
+    await db.run(
+      UPDATE('sains.ar.CustomerAccount')
+        .set({ balanceDeposit: { '-=': deposit.amount } })
+        .where({ ID: deposit.account_ID })
+    );
     if (appliedToOutstanding > 0) {
-      updates.balanceOutstanding = account.balanceOutstanding - appliedToOutstanding;
+      await db.run(
+        UPDATE('sains.ar.CustomerAccount')
+          .set({ balanceOutstanding: { '-=': appliedToOutstanding } })
+          .where({ ID: deposit.account_ID })
+      );
     }
     if (creditSurplus > 0) {
-      updates.balanceCreditOnAccount = (account.balanceCreditOnAccount || 0) + creditSurplus;
+      await db.run(
+        UPDATE('sains.ar.CustomerAccount')
+          .set({ balanceCreditOnAccount: { '+=': creditSurplus } })
+          .where({ ID: deposit.account_ID })
+      );
     }
-    await db.run(UPDATE('sains.ar.CustomerAccount').set(updates).where({ ID: deposit.account_ID }));
 
     await logAction(req, 'APPLY_DEPOSIT_TO_BALANCE', 'DepositRecord', ID, null,
       { appliedToOutstanding, creditSurplus, reason }, deposit.account_ID);
