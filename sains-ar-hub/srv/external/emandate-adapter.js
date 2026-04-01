@@ -32,9 +32,24 @@ const EMANDATE_CONFIG = {
  * @param {Object} params  - Registration parameters
  * @returns {{ registrationURL, mandateRef }}
  */
+function _isConfigured() {
+  return EMANDATE_CONFIG.API_BASE_URL &&
+    !EMANDATE_CONFIG.API_BASE_URL.startsWith('/*');
+}
+
 async function initiateRegistration(account, params) {
-  const token = await _getAccessToken();
   const mandateRef = `SAINS-MD-${account.accountNumber}-${Date.now()}`;
+
+  if (!_isConfigured()) {
+    logger.warn(`eMandate API not configured — returning mock registration (POC/dev mode)`);
+    return {
+      registrationURL: `${process.env.APP_URL || 'http://localhost:4004'}/simulator/emandate/register?ref=${mandateRef}`,
+      mandateRef,
+      dev: true,
+    };
+  }
+
+  const token = await _getAccessToken();
 
   try {
     const response = await axios.post(
@@ -87,6 +102,18 @@ async function initiateRegistration(account, params) {
  * @returns {{ mandateID, status, bankCode, bankAccountNumber, bankAccountName }}
  */
 async function checkMandateStatus(mandateRef) {
+  if (!_isConfigured()) {
+    logger.warn(`eMandate API not configured — returning mock ACTIVE status (POC/dev mode)`);
+    return {
+      mandateID: `DEV-MD-${Date.now()}`,
+      status: 'ACTIVE',
+      bankCode: 'MBB0227',
+      bankAccountNumber: '****1234',
+      bankAccountName: 'DEV MODE',
+      dev: true,
+    };
+  }
+
   const token = await _getAccessToken();
 
   try {

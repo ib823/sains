@@ -192,7 +192,7 @@ async function _autoMatch(db, statementID, parsedLines) {
         .columns('ID', 'amount', 'status')
         .where({
           bankReference: line.bankReference,
-          status: { not: 'REVERSED' },
+          status: { '!=': 'REVERSED' },
         })
     );
 

@@ -404,7 +404,7 @@ module.exports = (srv) => {
 
       const payment = await db.run(
         SELECT.one.from('sains.ar.Payment')
-          .where({ bankReference: line.bankReference, status: { not: 'REVERSED' } })
+          .where({ bankReference: line.bankReference, status: { '!=': 'REVERSED' } })
       );
 
       if (payment && Math.abs(Number(payment.amount) - Number(line.amount)) < 0.01) {

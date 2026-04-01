@@ -56,7 +56,7 @@ const DUITNOW_CONFIG = {
  * @param {Date}   billDate      - Invoice date (QR expiry = billDate + 14 days)
  * @returns {{ qrPayload, qrImageBase64, expiryDate }}
  */
-function generateQRPayload(accountNumber, invoiceNumber, amount, billDate) {
+async function generateQRPayload(accountNumber, invoiceNumber, amount, billDate) {
   const billRef = accountNumber.substring(0, 30);  // Max 30 chars per PayNet spec
   const productDetail = 'BAYARAN BILL AIR';         // Max 25 chars
   const merchantName = 'SAINS'.substring(0, 25);    // Max 25 chars
@@ -113,9 +113,22 @@ function generateQRPayload(accountNumber, invoiceNumber, amount, billDate) {
 
   logger.debug(`DuitNow QR generated for account ${accountNumber} invoice ${invoiceNumber}`);
 
+  // Generate QR code image as base64 PNG
+  let qrImageBase64 = null;
+  try {
+    const QRCode = require('qrcode');
+    qrImageBase64 = await QRCode.toDataURL(qrPayload, {
+      errorCorrectionLevel: 'M',
+      width: 300,
+      margin: 2,
+    });
+  } catch (qrErr) {
+    logger.warn(`DuitNow QR image generation failed: ${qrErr.message}`);
+  }
+
   return {
     qrPayload,
-    qrImageBase64: null, // TBC: Generate QR image using 'qrcode' npm package
+    qrImageBase64,
     expiryDate: expiryDateStr,
   };
 }

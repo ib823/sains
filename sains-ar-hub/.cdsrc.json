@@ -11,6 +11,10 @@
       "db": { "kind": "sqlite", "credentials": { "database": ":memory:" } },
       "uaa": { "kind": "dummy" }
     },
+    "[poc]": {
+      "db": { "kind": "sqlite", "credentials": { "database": "db/sains-poc.sqlite" } },
+      "uaa": { "kind": "dummy" }
+    },
     "[production]": {
       "db": { "kind": "hana-cloud" },
       "uaa": { "kind": "xsuaa" },

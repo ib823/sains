@@ -185,7 +185,7 @@ async function submitMonthlyConsolidatedB2C(year, month) {
       .where({
         invoiceDate: { between: fromDate, and: toDate },
         einvoiceRequired: false,      // B2C domestic invoices
-        status: { not: 'REVERSED' },
+        status: { '!=': 'REVERSED' },
       })
   );
 

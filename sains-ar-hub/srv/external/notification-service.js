@@ -20,6 +20,7 @@ async function sendEmail(params) {
 
   if (!ans) {
     logger.info('EMAIL (dev mode, not sent)', { to: params.to, subject: params.subject });
+    _logToSimulatorInbox('EMAIL', params.to, params.subject, params.body, params.accountNumber);
     return { success: true, messageId: 'DEV_MODE', dev: true };
   }
 
@@ -71,6 +72,7 @@ async function sendSMS(params) {
 
   if (!gatewayUrl || !apiKey) {
     logger.info('SMS (dev mode, not sent)', { to: params.to });
+    _logToSimulatorInbox('SMS', params.to, 'SMS Message', params.message, params.accountNumber);
     return { success: true, dev: true };
   }
 
@@ -161,6 +163,26 @@ async function sendSystemAlert(params) {
 
   } catch (error) {
     logger.error('System alert delivery failed', { error: error.message, params });
+  }
+}
+
+// Simulator inbox capture — logs all dev-mode notifications for the POC dashboard
+async function _logToSimulatorInbox(channel, recipient, subject, body, accountNumber) {
+  try {
+    const db = await cds.connect.to('db');
+    const { v4: uuidv4 } = require('uuid');
+    await db.run(INSERT.into('sains.simulator.NotificationInbox').entries({
+      ID: uuidv4(),
+      channel,
+      recipient: (recipient || '').substring(0, 200),
+      subject: (subject || '').substring(0, 500),
+      body: body || '',
+      status: 'SENT',
+      accountNumber: accountNumber || null,
+    }));
+  } catch (err) {
+    // Simulator logging must not break business logic
+    logger.debug(`Simulator inbox log skipped: ${err.message}`);
   }
 }
 

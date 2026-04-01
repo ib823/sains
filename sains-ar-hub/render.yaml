@@ -1,0 +1,15 @@
+services:
+  - type: web
+    runtime: node
+    name: sains-ar-hub
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:poc
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: development
+      - key: CDS_ENV
+        value: poc
+      - key: NODE_VERSION
+        value: 20.11.0

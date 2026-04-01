@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAINS AR Hub — Accounts Receivable Management</title>
+  <style>
+    :root {
+      --sains-blue: #0054a6;
+      --sains-dark: #003d7a;
+      --sains-light: #e8f0fe;
+      --sains-accent: #00a6d6;
+      --water-gradient: linear-gradient(135deg, #0054a6 0%, #00a6d6 50%, #00c9b7 100%);
+      --success: #1a7f37;
+      --warning: #bf8700;
+      --danger: #cf222e;
+      --bg: #f0f4f8;
+      --card: #ffffff;
+      --text: #1c2d3f;
+      --text-muted: #5a6f82;
+      --border: #d4dce6;
+      --shadow: 0 2px 8px rgba(0,84,166,0.08);
+      --shadow-hover: 0 6px 20px rgba(0,84,166,0.15);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Skip Link ── */
+    .skip-link { position: absolute; top: -100%; left: 16px; background: var(--sains-blue); color: #fff; padding: 8px 16px; border-radius: 0 0 6px 6px; z-index: 10000; font-size: 14px; text-decoration: none; }
+    .skip-link:focus { top: 0; }
+
+    /* ── Header ── */
+    .header { background: var(--water-gradient); color: white; padding: 0; position: relative; overflow: hidden; }
+    .header::before { content: ''; position: absolute; top: -50%; right: -10%; width: 500px; height: 500px; background: rgba(255,255,255,0.05); border-radius: 50%; }
+    .header::after { content: ''; position: absolute; bottom: -60%; left: -5%; width: 400px; height: 400px; background: rgba(255,255,255,0.03); border-radius: 50%; }
+    .header-inner { max-width: 1200px; margin: 0 auto; padding: 28px 32px; position: relative; z-index: 1; }
+    .header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .logo-area { display: flex; align-items: center; gap: 16px; }
+    .logo-text h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-text p { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+    .header-badge { background: rgba(255,255,255,0.15); backdrop-filter: blur(10px); padding: 6px 16px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+    .header-stats { display: flex; gap: 32px; flex-wrap: wrap; }
+    .header-stat { text-align: center; }
+    .header-stat .num { font-size: 28px; font-weight: 700; }
+    .header-stat .lbl { font-size: 11px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+    /* ── User selector ── */
+    .user-bar { background: white; border-bottom: 1px solid var(--border); padding: 10px 32px; display: flex; align-items: center; gap: 16px; justify-content: center; flex-wrap: wrap; }
+    .user-bar label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+    .user-bar select { padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; background: white; }
+    .user-bar .role-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .role-tag { background: var(--sains-light); color: var(--sains-blue); padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+
+    /* ── Breadcrumb ── */
+    .breadcrumb-bar { background: #f8fafc; border-bottom: 1px solid var(--border); padding: 8px 32px; font-size: 12px; color: var(--text-muted); }
+    .breadcrumb-bar a { color: var(--sains-blue); text-decoration: none; }
+    .breadcrumb-bar a:hover { text-decoration: underline; }
+    .breadcrumb-bar span.sep { margin: 0 6px; color: var(--border); }
+    .breadcrumb-inner { max-width: 1200px; margin: 0 auto; display: flex; align-items: center; gap: 4px; }
+    .breadcrumb-links { display: flex; gap: 4px; margin-left: auto; font-size: 11px; }
+    .breadcrumb-links a { padding: 2px 8px; border-radius: 4px; background: var(--sains-light); }
+
+    /* ── Global search ── */
+    .search-bar { max-width: 1200px; margin: 20px auto 0; padding: 0 32px; }
+    .search-wrap { position: relative; }
+    .search-wrap input { width: 100%; padding: 12px 16px 12px 44px; border: 2px solid var(--border); border-radius: 10px; font-size: 14px; background: var(--card); transition: border-color 0.2s; }
+    .search-wrap input:focus { outline: none; border-color: var(--sains-accent); }
+    .search-wrap .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--text-muted); pointer-events: none; }
+    .search-results-count { font-size: 12px; color: var(--text-muted); margin-top: 6px; display: none; padding-left: 4px; }
+
+    /* ── Container ── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 20px 32px 28px; }
+
+    /* ── Section headers ── */
+    .section { margin-bottom: 32px; }
+    .section.hidden-section { display: none; }
+    .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid var(--sains-light); }
+    .section-icon { width: 32px; height: 32px; background: var(--sains-light); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .section-header h2 { font-size: 16px; font-weight: 700; color: var(--sains-dark); }
+    .section-header .count { background: var(--sains-blue); color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+
+    /* ── App tiles ── */
+    .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+    .tile { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s; text-decoration: none; color: var(--text); display: flex; flex-direction: column; position: relative; }
+    .tile:hover { border-color: var(--sains-accent); box-shadow: var(--shadow-hover); transform: translateY(-2px); }
+    .tile.tile-hidden { display: none; }
+    .tile-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 22px; margin-bottom: 12px; }
+    .tile-icon.blue { background: #e8f0fe; }
+    .tile-icon.green { background: #dcfce7; }
+    .tile-icon.orange { background: #fff3e0; }
+    .tile-icon.purple { background: #f3e8ff; }
+    .tile-icon.red { background: #fee2e2; }
+    .tile-icon.teal { background: #e0f7fa; }
+    .tile h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .tile p { font-size: 12px; color: var(--text-muted); line-height: 1.4; flex: 1; }
+    .tile-badge { position: absolute; top: 12px; right: 12px; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+    .tile-badge.live { background: #dcfce7; color: #166534; }
+    .tile-badge.data { background: #e8f0fe; color: #1e40af; }
+    .tile-badge.readonly { background: #fef3c7; color: #92400e; }
+
+    /* ── Tooltip ── */
+    .tile .tile-tooltip { position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); background: var(--text); color: #fff; padding: 8px 12px; border-radius: 8px; font-size: 11px; line-height: 1.4; white-space: nowrap; opacity: 0; pointer-events: none; transition: opacity 0.15s; z-index: 100; }
+    .tile .tile-tooltip::after { content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--text); }
+    .tile:hover .tile-tooltip { opacity: 1; }
+
+    /* ── Footer ── */
+    .site-footer { background: white; border-top: 1px solid var(--border); padding: 20px 32px; text-align: center; color: var(--text-muted); font-size: 12px; margin-top: 40px; }
+    .site-footer a { color: var(--sains-blue); text-decoration: none; }
+
+    /* ── Quick actions ── */
+    .quick-actions { display: flex; gap: 12px; margin-bottom: 28px; flex-wrap: wrap; }
+    .quick-btn { display: flex; align-items: center; gap: 8px; padding: 10px 20px; background: var(--card); border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--sains-blue); transition: all 0.15s; text-decoration: none; }
+    .quick-btn:hover { background: var(--sains-light); border-color: var(--sains-blue); }
+    .quick-btn .icon { font-size: 18px; }
+
+    /* ── Status dots ── */
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .status-dot.green { background: #22c55e; }
+    .status-dot.yellow { background: #eab308; }
+    .status-dot.red { background: #ef4444; }
+
+    /* ── KPI animation ── */
+    .kpi-loading { opacity: 0.5; }
+    @keyframes kpiFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    .kpi-loaded { animation: kpiFadeIn 0.3s ease-out forwards; }
+
+    /* ── Quick-start overlay ── */
+    .quickstart-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 9999; display: flex; align-items: center; justify-content: center; }
+    .quickstart-overlay.dismissed { display: none; }
+    .quickstart-modal { background: var(--card); border-radius: 16px; padding: 36px 40px; max-width: 480px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+    .quickstart-modal h2 { font-size: 20px; color: var(--sains-dark); margin-bottom: 20px; }
+    .quickstart-modal .qs-step { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+    .quickstart-modal .qs-num { width: 30px; height: 30px; background: var(--sains-blue); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .quickstart-modal .qs-text { font-size: 14px; line-height: 1.5; padding-top: 4px; }
+    .quickstart-modal .qs-text strong { color: var(--sains-dark); }
+    .quickstart-btn { background: var(--sains-blue); color: #fff; border: none; padding: 12px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; margin-top: 8px; width: 100%; transition: background 0.15s; }
+    .quickstart-btn:hover { background: var(--sains-dark); }
+
+    /* ── Responsive breakpoints ── */
+    @media (max-width: 1024px) {
+      .tiles { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+      .header-stats { gap: 24px; }
+    }
+    @media (max-width: 768px) {
+      .header-inner { padding: 20px 16px; }
+      .container { padding: 20px 16px; }
+      .search-bar { padding: 0 16px; }
+      .tiles { grid-template-columns: repeat(2, 1fr); }
+      .header-stats { gap: 20px; }
+      .header-top { flex-direction: column; gap: 12px; align-items: flex-start; }
+      .user-bar { padding: 10px 16px; }
+      .breadcrumb-bar { padding: 8px 16px; }
+      .quick-actions { gap: 8px; }
+      .quick-btn { padding: 8px 14px; font-size: 12px; }
+      .quickstart-modal { padding: 24px; }
+    }
+    @media (max-width: 480px) {
+      .tiles { grid-template-columns: 1fr; }
+      .header-stats { justify-content: space-around; gap: 12px; }
+      .header-stat .num { font-size: 22px; }
+      .header-badge { font-size: 10px; padding: 4px 10px; }
+      .quick-actions { flex-direction: column; }
+      .quick-btn { width: 100%; }
+      .user-bar { flex-direction: column; gap: 8px; }
+      .breadcrumb-links { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Skip link for accessibility -->
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <!-- ======= HEADER ======= -->
+  <header role="banner" class="header">
+    <div class="header-inner">
+      <div class="header-top">
+        <div class="logo-area">
+          <div class="logo-text">
+            <h1>SAINS AR Hub</h1>
+            <p>Syarikat Air Negeri Sembilan &mdash; Accounts Receivable Management System</p>
+          </div>
+        </div>
+        <div>
+          <span class="header-badge">POC Environment</span>
+        </div>
+      </div>
+      <div class="header-stats" id="headerStats" aria-live="polite">
+        <div class="header-stat"><div class="num kpi-loading" id="statAccounts">...</div><div class="lbl">Accounts</div></div>
+        <div class="header-stat"><div class="num kpi-loading" id="statInvoices">...</div><div class="lbl">Invoices</div></div>
+        <div class="header-stat"><div class="num kpi-loading" id="statPayments">...</div><div class="lbl">Payments</div></div>
+        <div class="header-stat"><div class="num" id="statServices">13</div><div class="lbl">Services</div></div>
+        <div class="header-stat"><div class="num"><span class="status-dot green"></span>Live</div><div class="lbl">System Status</div></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ======= USER SELECTOR ======= -->
+  <div class="user-bar">
+    <label for="userSelect">Demo User:</label>
+    <select id="userSelect" onchange="switchUser()">
+      <option value="test-user:test">Super Admin (all roles)</option>
+      <option value="finance-admin:test">Finance Admin</option>
+      <option value="finance-supervisor:test">Finance Supervisor</option>
+      <option value="finance-manager:test">Finance Manager</option>
+      <option value="cfo:test">CFO</option>
+      <option value="bil-staff:test">BIL Staff</option>
+      <option value="bil-supervisor:test">BIL Supervisor</option>
+      <option value="counter-staff:test">Counter Staff</option>
+      <option value="collections-officer:test">Collections Officer</option>
+      <option value="auditor:test">Auditor (read-only)</option>
+      <option value="customer-alice:customer-test-password">Customer (Alice)</option>
+    </select>
+    <div class="role-tags" id="roleTags" aria-live="polite"></div>
+  </div>
+
+  <!-- ======= BREADCRUMB ======= -->
+  <div class="breadcrumb-bar">
+    <div class="breadcrumb-inner">
+      <span>SAINS AR Hub</span>
+      <span class="sep">&rsaquo;</span>
+      <strong>Launchpad</strong>
+      <div class="breadcrumb-links">
+        <a href="/launchpad/">Launchpad</a>
+        <a href="/demo/">Demo</a>
+        <a href="/simulator-dashboard/">Simulator</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======= GLOBAL SEARCH ======= -->
+  <div class="search-bar">
+    <div class="search-wrap">
+      <span class="search-icon" aria-hidden="true">&#128269;</span>
+      <input type="text" id="globalSearch" role="searchbox" aria-label="Search applications" placeholder="Search applications by name or description..." oninput="filterBySearch()">
+    </div>
+    <div class="search-results-count" id="searchResultsCount" aria-live="polite"></div>
+  </div>
+
+  <!-- ======= MAIN CONTENT ======= -->
+  <main role="main" id="main" class="container">
+
+    <!-- Quick Actions -->
+    <nav aria-label="Quick actions">
+      <div class="quick-actions">
+        <a class="quick-btn" href="/demo/"><span class="icon" aria-hidden="true">&#127916;</span> Guided Demo Presentation</a>
+        <a class="quick-btn" href="/simulator-dashboard/"><span class="icon" aria-hidden="true">&#9881;</span> External System Simulator</a>
+        <a class="quick-btn" href="/health"><span class="icon" aria-hidden="true">&#128154;</span> System Health</a>
+        <a class="quick-btn" href="/" target="_blank"><span class="icon" aria-hidden="true">&#128268;</span> OData Service Index</a>
+      </div>
+    </nav>
+
+    <!-- ======= CORE AR ======= -->
+    <section class="section" role="region" aria-label="Core Accounts Receivable" data-category="core-ar">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#128176;</div>
+        <h2>Core Accounts Receivable</h2>
+        <span class="count" aria-live="polite">6 apps</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/ARService/CustomerAccounts#preview-app" target="_blank" role="link"
+           aria-label="Open Customer Accounts - View and manage all consumer accounts"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,cfo,bilstaff,bilsupervisor,counterstaff,collectionsofficer,auditor"
+           data-tooltip-path="/ar/CustomerAccounts"
+           data-tooltip-note="OData v4 entity set with full CRUD, 490K records in production">
+          <span class="tile-tooltip"></span>
+          <span class="tile-badge data">50 records</span>
+          <div class="tile-icon blue" aria-hidden="true">&#128100;</div>
+          <h3>Customer Accounts</h3>
+          <p>View and manage all 490,000 consumer accounts. Account details, balances, dunning status, service addresses.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/Invoices#preview-app" target="_blank" role="link"
+           aria-label="Open Invoice Management - Water bills from SiBMA/iWRS"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,bilstaff,bilsupervisor,counterstaff,auditor"
+           data-tooltip-path="/ar/Invoices"
+           data-tooltip-note="Supports create, reverse, e-invoice submit. SiBMA/iWRS integration">
+          <span class="tile-tooltip"></span>
+          <span class="tile-badge data">150 records</span>
+          <div class="tile-icon blue" aria-hidden="true">&#128196;</div>
+          <h3>Invoice Management</h3>
+          <p>Water bills from SiBMA/iWRS. Create, reverse, submit to e-invoice. Credit notes and adjustments.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/Payments#preview-app" target="_blank" role="link"
+           aria-label="Open Payment Processing - All payment channels"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,bilstaff,bilsupervisor,counterstaff,auditor"
+           data-tooltip-path="/ar/Payments"
+           data-tooltip-note="Multi-channel: counter, FPX, DuitNow, JomPAY, eMandate. FIFO clearing">
+          <span class="tile-tooltip"></span>
+          <span class="tile-badge data">120 records</span>
+          <div class="tile-icon green" aria-hidden="true">&#128179;</div>
+          <h3>Payment Processing</h3>
+          <p>All payment channels: counter, FPX, DuitNow QR, JomPAY, eMandate, bank transfer. FIFO clearing engine.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/Adjustments#preview-app" target="_blank" role="link"
+           aria-label="Open Adjustments - Meter read corrections and leakage claims"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/ar/Adjustments"
+           data-tooltip-note="Meter corrections, leakage claims, tariff reclassification">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon orange" aria-hidden="true">&#128221;</div>
+          <h3>Adjustments</h3>
+          <p>Meter read corrections, leakage claims, tariff reclassification, goodwill credits. Fraud pattern detection.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/Deposits#preview-app" target="_blank" role="link"
+           aria-label="Open Deposit Management - Security deposits and refunds"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/ar/Deposits"
+           data-tooltip-note="Deposit refund, dormancy tracking, Akta Wang Tak Dituntut">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon teal" aria-hidden="true">&#127974;</div>
+          <h3>Deposit Management</h3>
+          <p>Security deposits, refund processing, dormancy tracking, unclaimed money (Akta Wang Tak Dituntut).</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/Disputes#preview-app" target="_blank" role="link"
+           aria-label="Open Dispute Management - Customer disputes and investigation"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/ar/Disputes"
+           data-tooltip-note="Hold invoices from dunning during investigation">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon red" aria-hidden="true">&#9888;</div>
+          <h3>Dispute Management</h3>
+          <p>Customer disputes, investigation tracking, hold invoices from dunning during investigation.</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ======= COLLECTIONS & DUNNING ======= -->
+    <section class="section" role="region" aria-label="Collections and Dunning" data-category="collections">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#128276;</div>
+        <h2>Collections &amp; Dunning</h2>
+        <span class="count" aria-live="polite">5 apps</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/ARService/DunningHistories#preview-app" target="_blank" role="link"
+           aria-label="Open Dunning Management - 5-level dunning escalation"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,bilstaff,bilsupervisor,collectionsofficer,auditor"
+           data-tooltip-path="/ar/DunningHistories"
+           data-tooltip-note="5-level escalation: reminder to legal. SMS/email/postal channels">
+          <span class="tile-tooltip"></span>
+          <span class="tile-badge data">30 records</span>
+          <div class="tile-icon red" aria-hidden="true">&#128227;</div>
+          <h3>Dunning Management</h3>
+          <p>5-level dunning escalation: reminder, formal notice, disconnection warning, disconnection, legal. SMS/email/postal.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/PromisesToPay#preview-app" target="_blank" role="link"
+           aria-label="Open Promise to Pay - PTP tracking and compliance"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,bilstaff,bilsupervisor,collectionsofficer,auditor"
+           data-tooltip-path="/ar/PromisesToPay"
+           data-tooltip-note="Self-service portal PTPs, compliance monitoring, broken PTP escalation">
+          <span class="tile-tooltip"></span>
+          <span class="tile-badge data">8 records</span>
+          <div class="tile-icon orange" aria-hidden="true">&#129309;</div>
+          <h3>Promise to Pay</h3>
+          <p>Customer PTP tracking, self-service portal PTPs, compliance monitoring, broken PTP escalation.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/PaymentPlans#preview-app" target="_blank" role="link"
+           aria-label="Open Payment Plans - Instalment plans and breach detection"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,collectionsofficer,auditor"
+           data-tooltip-path="/ar/PaymentPlans"
+           data-tooltip-note="Up to 12 months instalments. Auto-suppress dunning">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon blue" aria-hidden="true">&#128197;</div>
+          <h3>Payment Plans</h3>
+          <p>Instalment plans up to 12 months. Auto-suppress dunning. Breach detection and re-escalation.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/WriteOffs#preview-app" target="_blank" role="link"
+           aria-label="Open Write-Off Processing - 3-level approval matrix"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,cfo,auditor"
+           data-tooltip-path="/ar/WriteOffs"
+           data-tooltip-note="3-level approval: Supervisor (<RM500), Manager (<RM5K), CFO (<RM20K)">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon red" aria-hidden="true">&#128683;</div>
+          <h3>Write-Off Processing</h3>
+          <p>3-level approval matrix: Supervisor (&lt;RM500), Manager (&lt;RM5K), CFO (&lt;RM20K). GL posting on approval.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ARService/FraudAlerts#preview-app" target="_blank" role="link"
+           aria-label="Open Fraud Detection - 10 fraud patterns"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/ar/FraudAlerts"
+           data-tooltip-note="10 patterns: double write-off, large adjustment, quick reversal, etc.">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon red" aria-hidden="true">&#128680;</div>
+          <h3>Fraud Detection</h3>
+          <p>10 fraud patterns: double write-off, large adjustment, quick reversal, self-payment, agent anomaly, and more.</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ======= PAYMENT INNOVATION ======= -->
+    <section class="section" role="region" aria-label="Payment Innovation" data-category="payment-innovation">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#128241;</div>
+        <h2>Payment Innovation (Phase 2)</h2>
+        <span class="count" aria-live="polite">4 apps</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/PaymentInnovationService/PaymentEvents#preview-app" target="_blank" role="link"
+           aria-label="Open Payment Orchestrator - Unified event-driven payment processing"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/payment-innovation/PaymentEvents"
+           data-tooltip-note="Event-driven processing, auto-matching, duplicate detection">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon green" aria-hidden="true">&#128260;</div>
+          <h3>Payment Orchestrator</h3>
+          <p>Unified event-driven payment processing. Auto-matching, duplicate detection, suspense resolution.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/PaymentInnovationService/DuitNowQRCodes#preview-app" target="_blank" role="link"
+           aria-label="Open DuitNow QR Payments - EMVCo QR code generation"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/payment-innovation/DuitNowQRCodes"
+           data-tooltip-note="EMVCo QR per invoice. Real-time webhook from PayNet">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon green" aria-hidden="true">&#128274;</div>
+          <h3>DuitNow QR Payments</h3>
+          <p>EMVCo QR code generation for each invoice. Scan-and-pay via any Malaysian bank app. Real-time webhook.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/PaymentInnovationService/JomPAYBatches#preview-app" target="_blank" role="link"
+           aria-label="Open JomPAY Reconciliation - Daily SFTP batch processing"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/payment-innovation/JomPAYBatches"
+           data-tooltip-note="Daily SFTP batch from acquiring bank. CSV parse + auto-match">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon green" aria-hidden="true">&#127975;</div>
+          <h3>JomPAY Reconciliation</h3>
+          <p>Daily SFTP batch download from acquiring bank. CSV parsing, auto-matching, suspense flagging.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/PaymentInnovationService/eMandates#preview-app" target="_blank" role="link"
+           aria-label="Open eMandate Direct Debit - PayNet eMandate registration"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/payment-innovation/eMandates"
+           data-tooltip-note="PayNet eMandate, monthly auto-debit, return code handling">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon purple" aria-hidden="true">&#128179;</div>
+          <h3>eMandate (Direct Debit)</h3>
+          <p>PayNet eMandate registration, monthly auto-debit, return code handling (NSF, stopped, deceased).</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ======= INTELLIGENT COLLECTIONS ======= -->
+    <section class="section" role="region" aria-label="Intelligent Collections" data-category="intelligent-collections">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#129504;</div>
+        <h2>Intelligent Collections (Phase 2)</h2>
+        <span class="count" aria-live="polite">3 apps</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/IntelligentCollectionsService/CustomerSegments#preview-app" target="_blank" role="link"
+           aria-label="Open Customer Segmentation - AI-driven risk scoring"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,collectionsofficer,auditor"
+           data-tooltip-path="/intelligent-collections/CustomerSegments"
+           data-tooltip-note="AI risk scoring: propensity to pay, behaviour, affordability">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon purple" aria-hidden="true">&#127919;</div>
+          <h3>Customer Segmentation</h3>
+          <p>AI-driven risk scoring: propensity to pay, payment behaviour, affordability. Low/Medium/High/Vulnerable segments.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/IntelligentCollectionsService/VulnerabilityRecords#preview-app" target="_blank" role="link"
+           aria-label="Open Vulnerability and Hardship - PDPA-compliant vulnerability tracking"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,collectionsofficer,auditor"
+           data-tooltip-path="/intelligent-collections/VulnerabilityRecords"
+           data-tooltip-note="PDPA-compliant tracking. Hardship eligibility, capped dunning">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon purple" aria-hidden="true">&#128156;</div>
+          <h3>Vulnerability &amp; Hardship</h3>
+          <p>PDPA-compliant vulnerability tracking. Hardship scheme eligibility, capped dunning, social protection.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/IntelligentCollectionsService/EarlyInterventionAlerts#preview-app" target="_blank" role="link"
+           aria-label="Open Early Intervention - Proactive alerts for declining payments"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,collectionsofficer,auditor"
+           data-tooltip-path="/intelligent-collections/EarlyInterventionAlerts"
+           data-tooltip-note="Proactive: declining payments, channel shift, partial patterns">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon orange" aria-hidden="true">&#128161;</div>
+          <h3>Early Intervention</h3>
+          <p>Proactive alerts: declining payments, channel shift, partial payment patterns, eMandate cancellations.</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ======= E-INVOICE & COMPLIANCE ======= -->
+    <section class="section" role="region" aria-label="e-Invoice and Compliance" data-category="einvoice">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#128220;</div>
+        <h2>e-Invoice &amp; Compliance</h2>
+        <span class="count" aria-live="polite">3 apps</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/EInvoiceExcellenceService/SubmissionBatches#preview-app" target="_blank" role="link"
+           aria-label="Open LHDN e-Invoice MyInvois - B2B and B2C submission"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/e-invoice/SubmissionBatches"
+           data-tooltip-note="UBL 2.1 JSON, SHA256 digital signature, 72-hour cancellation">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon orange" aria-hidden="true">&#128203;</div>
+          <h3>LHDN e-Invoice (MyInvois)</h3>
+          <p>B2B individual submission, B2C monthly consolidation. UBL 2.1 JSON, SHA256 digital signature, 72-hour cancellation.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/EInvoiceExcellenceService/DigitalCertificates#preview-app" target="_blank" role="link"
+           aria-label="Open Digital Certificates - MCMC certificate lifecycle"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/e-invoice/DigitalCertificates"
+           data-tooltip-note="MCMC-issued certificate lifecycle. Expiry tracking, renewal alerts">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon orange" aria-hidden="true">&#128272;</div>
+          <h3>Digital Certificates</h3>
+          <p>MCMC-issued certificate lifecycle. Expiry tracking, renewal alerts.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/EInvoiceExcellenceService/ConsolidatedBatches#preview-app" target="_blank" role="link"
+           aria-label="Open B2C Consolidated - Monthly consolidation for LHDN"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/e-invoice/ConsolidatedBatches"
+           data-tooltip-note="Monthly consolidation of domestic invoices. Due by 7th of month">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon orange" aria-hidden="true">&#128230;</div>
+          <h3>B2C Consolidated</h3>
+          <p>Monthly consolidation of all domestic invoices for LHDN. Due by 7th of following month.</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ======= ANALYTICS & REPORTING ======= -->
+    <section class="section" role="region" aria-label="Analytics and Reporting" data-category="analytics">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#128200;</div>
+        <h2>Analytics &amp; Reporting</h2>
+        <span class="count" aria-live="polite">5 apps</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/AnalyticsService/ARKPISnapshots#preview-app" target="_blank" role="link"
+           aria-label="Open AR KPI Dashboard - DSO, collection efficiency, bad debt ratio"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,cfo,auditor"
+           data-tooltip-path="/analytics/ARKPISnapshots"
+           data-tooltip-note="DSO, collection efficiency, bad debt ratio, digital adoption">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon teal" aria-hidden="true">&#128202;</div>
+          <h3>AR KPI Dashboard</h3>
+          <p>DSO, collection efficiency, bad debt ratio, digital payment adoption, billing accuracy rate.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/AnalyticsService/ConsumptionAnomalies#preview-app" target="_blank" role="link"
+           aria-label="Open Consumption Anomalies - Z-score anomaly detection"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,cfo,auditor"
+           data-tooltip-path="/analytics/ConsumptionAnomalies"
+           data-tooltip-note="Z-score anomaly detection, fraud probability, meter tampering">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon red" aria-hidden="true">&#128269;</div>
+          <h3>Consumption Anomalies</h3>
+          <p>Z-score anomaly detection, fraud probability scoring, bill hold for investigation, meter tampering alerts.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/AnalyticsService/SPANKPIReports#preview-app" target="_blank" role="link"
+           aria-label="Open SPAN Regulatory Reports - Monthly KPIs for SPAN"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,cfo,auditor"
+           data-tooltip-path="/analytics/SPANKPIReports"
+           data-tooltip-note="Monthly SPAN submission: connections, billing, collections, complaints">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon teal" aria-hidden="true">&#127963;</div>
+          <h3>SPAN Regulatory Reports</h3>
+          <p>Monthly KPIs for SPAN submission: connections, billing, collection ratio, complaints, disconnections.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ProvisionReportingService/ECLCalculationRuns#preview-app" target="_blank" role="link"
+           aria-label="Open ECL Provisioning MFRS 9 - Expected Credit Loss calculation"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,cfo,auditor"
+           data-tooltip-path="/provision-reporting/ECLCalculationRuns"
+           data-tooltip-note="MFRS 9 ECL with forward-looking macro factors. Provision matrix">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon purple" aria-hidden="true">&#128200;</div>
+          <h3>ECL Provisioning (MFRS 9)</h3>
+          <p>Expected Credit Loss calculation with forward-looking macro factors. Provision matrix management.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/ProvisionReportingService/AuditorConfirmationLetters#preview-app" target="_blank" role="link"
+           aria-label="Open Auditor Confirmations - Balance confirmation letters"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,cfo,auditor"
+           data-tooltip-path="/provision-reporting/AuditorConfirmationLetters"
+           data-tooltip-note="MFRS 15 revenue disaggregation, deposit liability register">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon blue" aria-hidden="true">&#128231;</div>
+          <h3>Auditor Confirmations</h3>
+          <p>Balance confirmation letters for external audit. MFRS 15 revenue disaggregation, deposit liability register.</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ======= INTEGRATION & MONITORING ======= -->
+    <section class="section" role="region" aria-label="System Integration and Monitoring" data-category="integration">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#128268;</div>
+        <h2>System Integration &amp; Monitoring</h2>
+        <span class="count" aria-live="polite">4 apps</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/iWRSIntegrationService/iWRSEventLogs#preview-app" target="_blank" role="link"
+           aria-label="Open iWRS Integration Log - Real-time event log"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/iwrs-integration/iWRSEventLogs"
+           data-tooltip-note="Real-time iWRS event log. Pattern A/B/C status monitoring">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon blue" aria-hidden="true">&#128259;</div>
+          <h3>iWRS Integration Log</h3>
+          <p>Real-time event log for iWRS account, invoice, and payment events. Pattern A/B/C status monitoring.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/iWRSIntegrationService/MetisWorkOrders#preview-app" target="_blank" role="link"
+           aria-label="Open Metis Work Orders - Disconnection and reconnection"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/iwrs-integration/MetisWorkOrders"
+           data-tooltip-note="Disconnection/reconnection work orders. Field team dispatch">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon purple" aria-hidden="true">&#128295;</div>
+          <h3>Metis Work Orders</h3>
+          <p>Disconnection and reconnection work orders. Field team dispatch, completion tracking.</p>
+        </a>
+        <a class="tile" href="/simulator-dashboard/" target="_blank" role="link"
+           aria-label="Open External System Simulator - Simulate all 11 external systems"
+           data-roles="superadmin,financeadmin,financesupervisor,financemanager,auditor"
+           data-tooltip-path="/simulator-dashboard/"
+           data-tooltip-note="Simulate iWRS, banks, LHDN, PayNet, Metis, SAP. Trigger + view">
+          <span class="tile-tooltip"></span>
+          <span class="tile-badge live">LIVE</span>
+          <div class="tile-icon green" aria-hidden="true">&#9881;</div>
+          <h3>External System Simulator</h3>
+          <p>Simulate all 11 external systems: iWRS, banks, LHDN, PayNet, Metis, SAP. Trigger events and view responses.</p>
+        </a>
+        <a class="tile" href="/$fiori-preview/AdminService/GLAccountMappings#preview-app" target="_blank" role="link"
+           aria-label="Open GL Account Mappings - Chart of accounts configuration"
+           data-roles="superadmin,financemanager,auditor"
+           data-tooltip-path="/admin/GLAccountMappings"
+           data-tooltip-note="Map AR transaction types to SAP GL accounts, cost/profit centres">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon orange" aria-hidden="true">&#128218;</div>
+          <h3>GL Account Mappings</h3>
+          <p>Chart of accounts configuration. Map AR transaction types to SAP GL accounts, cost centres, profit centres.</p>
+        </a>
+      </div>
+    </section>
+
+    <!-- ======= CUSTOMER PORTAL (for Customer role) ======= -->
+    <section class="section" role="region" aria-label="Customer Portal" data-category="customer-portal">
+      <div class="section-header">
+        <div class="section-icon" aria-hidden="true">&#127968;</div>
+        <h2>Customer Portal</h2>
+        <span class="count" aria-live="polite">1 app</span>
+      </div>
+      <div class="tiles">
+        <a class="tile" href="/$fiori-preview/ARService/CustomerAccounts#preview-app" target="_blank" role="link"
+           aria-label="Open Customer Portal - View your account, bills and payments"
+           data-roles="customer"
+           data-tooltip-path="/ar/CustomerAccounts (customer view)"
+           data-tooltip-note="Self-service portal: view bills, make payments, PTP, dispute">
+          <span class="tile-tooltip"></span>
+          <div class="tile-icon blue" aria-hidden="true">&#127968;</div>
+          <h3>Customer Portal</h3>
+          <p>View your account, bills, and payment history. Make payments, set up direct debit, raise disputes, promise to pay.</p>
+        </a>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ======= FOOTER ======= -->
+  <footer class="site-footer" role="contentinfo">
+    <p>SAINS AR Hub v2.0.0 &mdash; POC Demonstration Environment</p>
+    <p style="margin-top: 4px;">Powered by SAP Cloud Application Programming Model (CAP) | Deployed on Fly.io (Singapore)</p>
+    <p style="margin-top: 4px;">When SAP BTP is ready, this same codebase deploys to Cloud Foundry with HANA Cloud + XSUAA</p>
+  </footer>
+
+  <!-- ======= QUICK-START OVERLAY ======= -->
+  <div class="quickstart-overlay" id="quickstartOverlay" role="dialog" aria-modal="true" aria-label="Quick start guide">
+    <div class="quickstart-modal">
+      <h2>Welcome to SAINS AR Hub</h2>
+      <div class="qs-step">
+        <div class="qs-num">1</div>
+        <div class="qs-text"><strong>Choose your role</strong> from the dropdown at the top to see only the applications relevant to you.</div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">2</div>
+        <div class="qs-text"><strong>Click any tile</strong> to explore the application. Each tile opens a Fiori preview of the OData service.</div>
+      </div>
+      <div class="qs-step">
+        <div class="qs-num">3</div>
+        <div class="qs-text"><strong>Use the Simulator</strong> to generate test events from external systems (iWRS, banks, LHDN, PayNet).</div>
+      </div>
+      <button class="quickstart-btn" onclick="dismissQuickstart()" aria-label="Dismiss quick start guide">Got it</button>
+    </div>
+  </div>
+
+  <script>
+    /* ────────────────────────────────────────────
+       SAINS AR Hub — Launchpad Controller
+       ──────────────────────────────────────────── */
+
+    const BASE = window.location.origin;
+
+    const USERS = {
+      'test-user:test':                      { label: 'SuperAdmin', tags: ['SuperAdmin', 'Finance', 'BIL', 'Counter', 'Collections', 'Auditor'] },
+      'finance-admin:test':                  { label: 'FinanceAdmin', tags: ['FinanceAdmin'] },
+      'finance-supervisor:test':             { label: 'FinanceSupervisor', tags: ['FinanceSupervisor', 'FinanceAdmin'] },
+      'finance-manager:test':                { label: 'FinanceManager', tags: ['FinanceManager', 'FinanceSupervisor'] },
+      'cfo:test':                            { label: 'CFO', tags: ['CFO', 'FinanceManager'] },
+      'bil-staff:test':                      { label: 'BILStaff', tags: ['BILStaff'] },
+      'bil-supervisor:test':                 { label: 'BILSupervisor', tags: ['BILSupervisor', 'BILStaff'] },
+      'counter-staff:test':                  { label: 'CounterStaff', tags: ['CounterStaff'] },
+      'collections-officer:test':            { label: 'CollectionsOfficer', tags: ['CollectionsOfficer', 'BILStaff'] },
+      'auditor:test':                        { label: 'Auditor', tags: ['Auditor'] },
+      'customer-alice:customer-test-password':{ label: 'Customer', tags: ['Customer'] },
+    };
+
+    /* Role key -> which data-roles values they can see */
+    const ROLE_ACCESS = {
+      'test-user:test':                       'superadmin',
+      'finance-admin:test':                   'financeadmin',
+      'finance-supervisor:test':              'financesupervisor',
+      'finance-manager:test':                 'financemanager',
+      'cfo:test':                             'cfo',
+      'bil-staff:test':                       'bilstaff',
+      'bil-supervisor:test':                  'bilsupervisor',
+      'counter-staff:test':                   'counterstaff',
+      'collections-officer:test':             'collectionsofficer',
+      'auditor:test':                         'auditor',
+      'customer-alice:customer-test-password': 'customer',
+    };
+
+    /* ── Init tooltips ── */
+    function initTooltips() {
+      document.querySelectorAll('.tile[data-tooltip-path]').forEach(function(tile) {
+        var path = tile.getAttribute('data-tooltip-path');
+        var note = tile.getAttribute('data-tooltip-note');
+        var tooltip = tile.querySelector('.tile-tooltip');
+        if (tooltip) {
+          tooltip.textContent = path + ' — ' + note;
+        }
+      });
+    }
+
+    /* ── User switching + RBAC ── */
+    function switchUser() {
+      var sel = document.getElementById('userSelect');
+      var val = sel.value;
+      var user = USERS[val];
+      if (!user) return;
+
+      /* Persist selection */
+      try { localStorage.setItem('sains-demo-user', val); } catch(e) {}
+
+      /* Update role tags */
+      document.getElementById('roleTags').innerHTML = user.tags.map(function(r) {
+        return '<span class="role-tag">' + r + '</span>';
+      }).join('');
+
+      /* Get the role key for tile filtering */
+      var roleKey = ROLE_ACCESS[val];
+      var isAuditor = roleKey === 'auditor';
+      var isCustomer = roleKey === 'customer';
+      var isSuperAdmin = roleKey === 'superadmin';
+
+      /* Filter tiles */
+      var allTiles = document.querySelectorAll('.tile[data-roles]');
+      allTiles.forEach(function(tile) {
+        var allowedRoles = tile.getAttribute('data-roles').split(',');
+        var visible = isSuperAdmin || isAuditor || allowedRoles.indexOf(roleKey) !== -1;
+        tile.classList.toggle('tile-hidden', !visible);
+
+        /* Auditor read-only badge */
+        var existingReadonly = tile.querySelector('.tile-badge.readonly');
+        if (isAuditor && visible) {
+          if (!existingReadonly) {
+            var badge = document.createElement('span');
+            badge.className = 'tile-badge readonly';
+            badge.textContent = '(Read Only)';
+            tile.appendChild(badge);
+          }
+        } else if (existingReadonly) {
+          existingReadonly.remove();
+        }
+      });
+
+      /* Update section counts and hide empty sections */
+      document.querySelectorAll('.section[data-category]').forEach(function(section) {
+        var allInSection = section.querySelectorAll('.tile[data-roles]');
+        var visibleInSection = section.querySelectorAll('.tile[data-roles]:not(.tile-hidden)');
+        var totalCount = allInSection.length;
+        var visibleCount = visibleInSection.length;
+        var countEl = section.querySelector('.count');
+        if (countEl) {
+          if (isSuperAdmin) {
+            countEl.textContent = totalCount + ' apps';
+          } else {
+            countEl.textContent = visibleCount + ' of ' + totalCount + ' apps';
+          }
+        }
+        section.classList.toggle('hidden-section', visibleCount === 0);
+      });
+
+      /* Re-apply search filter on top */
+      filterBySearch();
+    }
+
+    /* ── Global search ── */
+    function filterBySearch() {
+      var query = (document.getElementById('globalSearch').value || '').toLowerCase().trim();
+      var resultsEl = document.getElementById('searchResultsCount');
+      var allTiles = document.querySelectorAll('.tile[data-roles]');
+      var matchCount = 0;
+      var totalVisible = 0;
+
+      allTiles.forEach(function(tile) {
+        /* Skip tiles already hidden by RBAC */
+        var rbacHidden = false;
+        var roleKey = ROLE_ACCESS[document.getElementById('userSelect').value];
+        var isSuperAdmin = roleKey === 'superadmin';
+        var isAuditor = roleKey === 'auditor';
+        var allowedRoles = tile.getAttribute('data-roles').split(',');
+        if (!isSuperAdmin && !isAuditor && allowedRoles.indexOf(roleKey) === -1) {
+          rbacHidden = true;
+        }
+
+        if (rbacHidden) {
+          tile.classList.add('tile-hidden');
+          return;
+        }
+
+        totalVisible++;
+        if (!query) {
+          tile.classList.remove('tile-hidden');
+          matchCount++;
+          return;
+        }
+
+        var name = (tile.querySelector('h3') || {}).textContent || '';
+        var desc = (tile.querySelector('p') || {}).textContent || '';
+        var matches = name.toLowerCase().indexOf(query) !== -1 || desc.toLowerCase().indexOf(query) !== -1;
+        tile.classList.toggle('tile-hidden', !matches);
+        if (matches) matchCount++;
+      });
+
+      if (query) {
+        resultsEl.style.display = 'block';
+        resultsEl.textContent = matchCount + ' result' + (matchCount !== 1 ? 's' : '') + ' found';
+      } else {
+        resultsEl.style.display = 'none';
+      }
+
+      /* Hide sections where all tiles are hidden */
+      document.querySelectorAll('.section[data-category]').forEach(function(section) {
+        var visibleInSection = section.querySelectorAll('.tile[data-roles]:not(.tile-hidden)');
+        section.classList.toggle('hidden-section', visibleInSection.length === 0);
+      });
+    }
+
+    /* ── KPI Loading ── */
+    function animateKPI(el, value) {
+      el.classList.remove('kpi-loading');
+      el.classList.add('kpi-loaded');
+      el.textContent = value;
+    }
+
+    async function loadStats() {
+      var AUTH = 'Basic ' + btoa(document.getElementById('userSelect').value || 'test-user:test');
+      try {
+        var results = await Promise.all([
+          fetch(BASE + '/ar/CustomerAccounts/$count', { headers: { Authorization: AUTH } }).then(function(r) { return r.text(); }),
+          fetch(BASE + '/ar/Invoices/$count', { headers: { Authorization: AUTH } }).then(function(r) { return r.text(); }),
+          fetch(BASE + '/ar/Payments/$count', { headers: { Authorization: AUTH } }).then(function(r) { return r.text(); }),
+        ]);
+        animateKPI(document.getElementById('statAccounts'), results[0]);
+        animateKPI(document.getElementById('statInvoices'), results[1]);
+        animateKPI(document.getElementById('statPayments'), results[2]);
+      } catch (e) {
+        console.error('Stats load failed', e);
+        animateKPI(document.getElementById('statAccounts'), '--');
+        animateKPI(document.getElementById('statInvoices'), '--');
+        animateKPI(document.getElementById('statPayments'), '--');
+      }
+    }
+
+    /* ── Pre-warm ping ── */
+    function prewarmServices() {
+      var AUTH = 'Basic ' + btoa('test-user:test');
+      fetch(BASE + '/admin/$metadata', { headers: { Authorization: AUTH } }).catch(function() {});
+      fetch(BASE + '/ar/$metadata', { headers: { Authorization: AUTH } }).catch(function() {});
+    }
+
+    /* ── Quick-start overlay ── */
+    function dismissQuickstart() {
+      try { localStorage.setItem('sains-quickstart-dismissed', 'true'); } catch(e) {}
+      document.getElementById('quickstartOverlay').classList.add('dismissed');
+    }
+
+    function checkQuickstart() {
+      try {
+        if (localStorage.getItem('sains-quickstart-dismissed') === 'true') {
+          document.getElementById('quickstartOverlay').classList.add('dismissed');
+        }
+      } catch(e) {
+        document.getElementById('quickstartOverlay').classList.add('dismissed');
+      }
+    }
+
+    /* ── Restore persisted role ── */
+    function restoreUser() {
+      try {
+        var saved = localStorage.getItem('sains-demo-user');
+        if (saved) {
+          var sel = document.getElementById('userSelect');
+          for (var i = 0; i < sel.options.length; i++) {
+            if (sel.options[i].value === saved) {
+              sel.value = saved;
+              break;
+            }
+          }
+        }
+      } catch(e) {}
+    }
+
+    /* ── Initialise ── */
+    (function init() {
+      initTooltips();
+      checkQuickstart();
+      restoreUser();
+      switchUser();
+      loadStats();
+      prewarmServices();
+    })();
+  </script>
+  <!-- Training Overlay System -->
+  <link rel="stylesheet" href="/training/training-styles.css">
+  <script src="/training/training-overlay.js"></script>
+  <script src="/training/training-content.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      TrainingOverlay.init({
+        pageId: 'launchpad',
+        steps: TrainingContent.launchpad,
+        autoShow: false
+      });
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+web: node node_modules/@sap/cds/bin/cds-serve

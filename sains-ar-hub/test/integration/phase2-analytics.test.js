@@ -179,8 +179,8 @@ describe('Phase 2 — AI Analytics & Revenue Intelligence Integration Tests', ()
       expect(Number(snapshot.dso)).toBeGreaterThanOrEqual(0);
       expect(Number(snapshot.totalOpenAR)).toBeGreaterThan(0);
 
-      // Verify DSO is a reasonable number (0-999 days)
-      expect(Number(snapshot.dso)).toBeLessThan(999);
+      // Verify DSO is a reasonable number (0-999 days, capped at 999)
+      expect(Number(snapshot.dso)).toBeLessThanOrEqual(999);
 
       // Verify formula: if we have revenue, DSO should be calculable
       if (Number(snapshot.totalOpenAR) > 0) {

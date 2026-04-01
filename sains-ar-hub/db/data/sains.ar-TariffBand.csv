@@ -1,0 +1,8 @@
+ID,code,name,accountTypeCode,isActive
+tb-dom-a-0001-0001-000000000001,DOM_A,Domestic Band A,DOM,true
+tb-dom-b-0001-0001-000000000002,DOM_B,Domestic Band B,DOM,true
+tb-com-a-0001-0001-000000000003,COM_A,Commercial Band A,COM_S,true
+tb-com-b-0001-0001-000000000004,COM_B,Commercial Band B,COM_L,true
+tb-ind-a-0001-0001-000000000005,IND_A,Industrial Band A,IND,true
+tb-gov-a-0001-0001-000000000006,GOV_A,Government Band A,GOV,true
+tb-inst-a-001-0001-000000000007,INST_A,Institutional Band A,INST,true

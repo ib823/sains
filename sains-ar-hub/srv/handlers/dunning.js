@@ -171,8 +171,8 @@ async function runDailyGLPostingJob(postingDate = new Date()) {
 
   // BLOCKER-2: Fetch ALL four transaction types
   const [invoices, payments, adjustments, deposits] = await Promise.all([
-    db.run(SELECT.from('sains.ar.Invoice').where({ invoiceDate: dateStr, status: { not: 'REVERSED' } })),
-    db.run(SELECT.from('sains.ar.Payment').where({ paymentDate: dateStr, status: { not: 'REVERSED' } })),
+    db.run(SELECT.from('sains.ar.Invoice').where({ invoiceDate: dateStr, status: { '!=': 'REVERSED' } })),
+    db.run(SELECT.from('sains.ar.Payment').where({ paymentDate: dateStr, status: { '!=': 'REVERSED' } })),
     db.run(SELECT.from('sains.ar.Adjustment').where({ postedAt: { like: `${dateStr}%` }, status: 'POSTED' })),
     db.run(SELECT.from('sains.ar.DepositRecord').where({ depositDate: dateStr })),
   ]);

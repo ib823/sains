@@ -83,7 +83,7 @@ module.exports = cds.service.impl(async function() {
         .where({
           account_ID: ptp.account_ID,
           createdAt: { '>=': yearStart },
-          status: { not: 'SUPERSEDED' },
+          status: { '!=': 'SUPERSEDED' },
         })
     );
 

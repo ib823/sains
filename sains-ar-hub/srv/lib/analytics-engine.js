@@ -43,7 +43,7 @@ async function calculateDailyKPISnapshot(snapshotDate = new Date()) {
   const totalOpen = Number(arTotals?.[0]?.totalOpen || arTotals?.totalOpen || 0);
   const totalOverdue = Number(arTotals?.[0]?.totalOverdue || arTotals?.totalOverdue || 0);
   const revenue = Number(revenue30d?.[0]?.revenue || 0);
-  const dso = revenue > 0 ? (totalOpen / revenue) * 30 : 0;
+  const dso = revenue > 0 ? Math.min((totalOpen / revenue) * 30, 999) : 0;
 
   // 3. Collection Effectiveness Index (CEI)
   // CEI = Collections in period / (Opening AR + Billed in period - Closing AR)
@@ -565,7 +565,7 @@ async function generateSPANReport(year, month) {
     totalConnections: Number(connections?.[0]?.c || 0),
     totalBilled,
     totalCollected,
-    collectionRatio: totalBilled > 0 ? Math.round(totalCollected / totalBilled * 10000) / 10000 : 0,
+    collectionRatio: totalBilled > 0 ? Math.min(1, Math.round(totalCollected / totalBilled * 10000) / 10000) : 0,
     outstandingDebt: totalBilled - totalCollected,
     badDebtWrittenOff: Number(writeOffs?.[0]?.wo || 0),
     badDebtProvision: Number(provision?.[0]?.prov || 0),

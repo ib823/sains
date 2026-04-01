@@ -19,10 +19,12 @@
     "test:all": "jest",
     "test:integration:phase2": "jest test/integration/phase2-* --testTimeout=30000 --runInBand",
     "lint": "eslint srv/ --ext .js",
+    "start:poc": "CDS_ENV=poc npx cds deploy && CDS_ENV=poc cds-serve",
     "deploy:cf": "cf blue-green-deploy sains-ar-hub -f manifest.yml",
     "deploy:hdi": "cds deploy --to hana"
   },
   "dependencies": {
+    "@cap-js/sqlite": "^1.11.1",
     "@sap/audit-logging": "^5.8.0",
     "@sap/cds": "^8.0.0",
     "@sap/cds-dk": "^8.0.0",
@@ -128,10 +130,113 @@
             }
           }
         }
+      },
+      "[poc]": {
+        "db": {
+          "kind": "sqlite",
+          "credentials": {
+            "database": "db/sains-poc.sqlite"
+          }
+        },
+        "auth": {
+          "kind": "mocked",
+          "users": {
+            "test-user": {
+              "password": "test",
+              "roles": [
+                "authenticated-user",
+                "FinanceAdmin",
+                "FinanceSupervisor",
+                "FinanceManager",
+                "BILStaff",
+                "BILSupervisor",
+                "CounterStaff",
+                "CounterSupervisor",
+                "CollectionsOfficer",
+                "CollectionsSupervisor",
+                "ReportViewer",
+                "SystemAdmin"
+              ]
+            },
+            "iwrs-system": {
+              "password": "iwrs-test-password",
+              "roles": ["iWRSServiceAccount", "SystemProcess"]
+            },
+            "metis-system": {
+              "password": "metis-test-password",
+              "roles": ["MetisServiceAccount", "SystemProcess"]
+            },
+            "customer-alice": {
+              "password": "customer-test-password",
+              "roles": ["Customer"],
+              "attr": {
+                "sains_account_numbers": ["10000000001"]
+              }
+            },
+            "customer-bob": {
+              "password": "customer-test-password",
+              "roles": ["Customer"],
+              "attr": {
+                "sains_account_numbers": ["1000000002"]
+              }
+            },
+            "customer-chong": {
+              "password": "customer-test-password",
+              "roles": ["Customer"],
+              "attr": {
+                "sains_account_numbers": ["1000000010"]
+              }
+            },
+            "finance-admin": {
+              "password": "test",
+              "roles": ["FinanceAdmin", "authenticated-user"]
+            },
+            "finance-supervisor": {
+              "password": "test",
+              "roles": ["FinanceSupervisor", "FinanceAdmin", "authenticated-user"]
+            },
+            "finance-manager": {
+              "password": "test",
+              "roles": ["FinanceManager", "FinanceSupervisor", "FinanceAdmin", "authenticated-user"]
+            },
+            "bil-staff": {
+              "password": "test",
+              "roles": ["BILStaff", "authenticated-user"]
+            },
+            "bil-supervisor": {
+              "password": "test",
+              "roles": ["BILSupervisor", "BILStaff", "authenticated-user"]
+            },
+            "counter-staff": {
+              "password": "test",
+              "roles": ["CounterStaff", "authenticated-user"]
+            },
+            "auditor": {
+              "password": "test",
+              "roles": ["Auditor", "authenticated-user"]
+            },
+            "cfo": {
+              "password": "test",
+              "roles": ["CFO", "FinanceManager", "authenticated-user"]
+            },
+            "collections-officer": {
+              "password": "test",
+              "roles": ["CollectionsOfficer", "BILStaff", "authenticated-user"]
+            }
+          }
+        }
       }
     },
     "features": {
       "fiori_preview": true
+    },
+    "fiori": {
+      "preview": {
+        "ui5": {
+          "version": "",
+          "theme": "sap_horizon"
+        }
+      }
     },
     "build": {
       "target": "gen",
@@ -155,7 +260,7 @@
     },
     "server": {
       "port": 4004,
-      "cors": false
+      "cors": true
     }
   }
 }

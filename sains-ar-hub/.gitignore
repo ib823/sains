@@ -2,5 +2,9 @@ node_modules/
 gen/
 .env.production
 *.env
+.env.poc
 .DS_Store
 *.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

@@ -277,14 +277,14 @@ async function runEarlyInterventionScan(asOfDate = new Date()) {
         db.run(
           SELECT.from('sains.ar.Payment')
             .columns('amount', 'paymentDate', 'channel', 'status')
-            .where({ account_ID: account.ID, paymentDate: { '>=': sixMonthsAgo }, status: { not: 'REVERSED' } })
+            .where({ account_ID: account.ID, paymentDate: { '>=': sixMonthsAgo }, status: { '!=': 'REVERSED' } })
             .orderBy({ paymentDate: 'desc' })
             .limit(12)
         ),
         db.run(
           SELECT.from('sains.ar.Invoice')
             .columns('totalAmount', 'dueDate', 'billingPeriodTo', 'status')
-            .where({ account_ID: account.ID, invoiceDate: { '>=': sixMonthsAgo }, status: { not: 'REVERSED' } })
+            .where({ account_ID: account.ID, invoiceDate: { '>=': sixMonthsAgo }, status: { '!=': 'REVERSED' } })
             .orderBy({ invoiceDate: 'desc' })
             .limit(12)
         ),

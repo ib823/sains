@@ -182,6 +182,16 @@ module.exports = (srv) => {
     const invoice = await db.run(SELECT.one.from('sains.ar.Invoice').where({ ID }));
     if (!invoice) return req.error(404, 'Invoice not found');
 
+    // Enforce 72-hour cancellation window
+    if (invoice.einvoiceCancelDeadline) {
+      const deadline = new Date(invoice.einvoiceCancelDeadline);
+      if (new Date() > deadline) {
+        return req.error(400,
+          `Cancellation window expired on ${deadline.toISOString()}. ` +
+          `Use raiseCreditNote instead (per LHDN MyInvois regulation).`);
+      }
+    }
+
     const result = await cancelInvoice(invoice, reason);
     if (result.success) {
       await db.run(UPDATE('sains.ar.Invoice').set({

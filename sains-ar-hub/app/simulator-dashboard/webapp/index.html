@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAINS AR Hub — External System Simulator</title>
+  <style>
+    :root {
+      --primary: #0070b8;
+      --primary-dark: #005a94;
+      --success: #2da44e;
+      --warning: #d29922;
+      --danger: #cf222e;
+      --bg: #f6f8fa;
+      --card-bg: #ffffff;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --text-muted: #656d76;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+
+    /* Header */
+    .header { background: var(--primary); color: white; padding: 16px 24px; display: flex; align-items: center; gap: 16px; }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header .badge { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+
+    /* Layout */
+    .container { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+    /* Stats bar */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+    .stat-card .number { font-size: 28px; font-weight: 700; color: var(--primary); }
+    .stat-card .label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Tab navigation */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 24px; overflow-x: auto; }
+    .tab { padding: 10px 20px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 14px; white-space: nowrap; color: var(--text-muted); }
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 600; }
+
+    /* Tab content */
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 20px; margin-bottom: 16px; }
+    .card h3 { font-size: 15px; margin-bottom: 12px; color: var(--primary-dark); }
+    .card p.desc { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; }
+
+    /* Forms */
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+    .form-group input, .form-group select { padding: 8px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 14px; }
+    .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(0,112,184,0.15); }
+
+    /* Buttons */
+    .btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 14px; font-weight: 500; cursor: pointer; transition: 0.15s; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-success { background: var(--success); color: white; }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .actions { margin-top: 16px; display: flex; gap: 8px; align-items: center; }
+
+    /* Response panel */
+    .response { margin-top: 12px; background: #f0f6fc; border: 1px solid #c8e1ff; border-radius: 6px; padding: 12px; font-family: 'SF Mono', Consolas, monospace; font-size: 12px; max-height: 300px; overflow-y: auto; white-space: pre-wrap; display: none; }
+    .response.visible { display: block; }
+    .response.error { background: #fff1f0; border-color: #ffc9c9; }
+
+    /* Event log table */
+    .log-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .log-table th { text-align: left; padding: 8px 12px; background: #f6f8fa; border-bottom: 2px solid var(--border); font-weight: 600; font-size: 12px; color: var(--text-muted); }
+    .log-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    .log-table tr:hover { background: #f6f8fa; }
+    .badge-status { padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+    .badge-status.accepted, .badge-status.sent { background: #dafbe1; color: #116329; }
+    .badge-status.rejected, .badge-status.failed { background: #fff1f0; color: #82071e; }
+    .badge-status.pending { background: #fff8c5; color: #4d2d00; }
+
+    /* System badge */
+    .system-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+    .system-badge.iwrs { background: #ddf4ff; color: #0969da; }
+    .system-badge.lhdn { background: #fff8c5; color: #4d2d00; }
+    .system-badge.paynet { background: #dafbe1; color: #116329; }
+    .system-badge.metis { background: #fbefff; color: #8250df; }
+    .system-badge.bank { background: #f6f8fa; color: #656d76; }
+    .system-badge.sap { background: #fff1e5; color: #bc4c00; }
+
+    /* Spinner */
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Notifications inbox */
+    .notification-item { display: flex; gap: 12px; padding: 12px; border-bottom: 1px solid var(--border); }
+    .notification-item .channel-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .notification-item .channel-icon.email { background: #ddf4ff; }
+    .notification-item .channel-icon.sms { background: #dafbe1; }
+    .notification-item .channel-icon.whatsapp { background: #dafbe1; }
+    .notification-item .notif-content { flex: 1; }
+    .notification-item .notif-subject { font-weight: 600; font-size: 13px; }
+    .notification-item .notif-body { font-size: 12px; color: var(--text-muted); margin-top: 4px; max-height: 60px; overflow: hidden; }
+    .notification-item .notif-meta { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>SAINS AR Hub — External System Simulator</h1>
+    <span class="badge">POC Demo Environment</span>
+    <span class="badge" id="lastRefresh">--</span>
+  </div>
+
+  <div class="container">
+    <!-- Stats bar -->
+    <div class="stats" id="statsBar">
+      <div class="stat-card"><div class="number" id="statTotal">-</div><div class="label">Total Events</div></div>
+      <div class="stat-card"><div class="number" id="statIWRS">-</div><div class="label">iWRS Events</div></div>
+      <div class="stat-card"><div class="number" id="statPayments">-</div><div class="label">Payment Events</div></div>
+      <div class="stat-card"><div class="number" id="statEInvoice">-</div><div class="label">e-Invoice</div></div>
+      <div class="stat-card"><div class="number" id="statGL">-</div><div class="label">GL Postings</div></div>
+      <div class="stat-card"><div class="number" id="statNotif">-</div><div class="label">Notifications</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" data-tab="iwrs">iWRS</div>
+      <div class="tab" data-tab="bank">Bank Statements</div>
+      <div class="tab" data-tab="lhdn">LHDN MyInvois</div>
+      <div class="tab" data-tab="duitnow">DuitNow QR</div>
+      <div class="tab" data-tab="fpx">FPX</div>
+      <div class="tab" data-tab="jompay">JomPAY</div>
+      <div class="tab" data-tab="emandate">eMandate</div>
+      <div class="tab" data-tab="metis">Metis</div>
+      <div class="tab" data-tab="gl">SAP GL</div>
+      <div class="tab" data-tab="notifications">Inbox</div>
+      <div class="tab" data-tab="eventlog">Event Log</div>
+    </div>
+
+    <!-- ═══ iWRS TAB ═══ -->
+    <div class="tab-content active" id="tab-iwrs">
+      <div class="card">
+        <h3>Simulate: Account Created (iWRS Pattern A)</h3>
+        <p class="desc">Simulates iWRS sending a new customer account event to AR Hub.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Account Number</label><input id="iwrs-acc-no" value="1000000099" /></div>
+          <div class="form-group"><label>Customer Name</label><input id="iwrs-cust-name" value="Ahmad bin Abdullah" /></div>
+          <div class="form-group"><label>ID Number</label><input id="iwrs-id-no" value="880101145678" /></div>
+          <div class="form-group"><label>ID Type</label><select id="iwrs-id-type"><option value="IC">IC</option><option value="BRN">BRN</option></select></div>
+          <div class="form-group"><label>Account Type</label><select id="iwrs-acc-type"><option value="DOM">Domestic</option><option value="COM_S">Commercial (S)</option><option value="COM_L">Commercial (L)</option><option value="IND">Industrial</option><option value="GOV">Government</option><option value="INST">Institutional</option></select></div>
+          <div class="form-group"><label>Address</label><input id="iwrs-addr" value="12, Jalan Dato' Bandar Tunggal" /></div>
+          <div class="form-group"><label>City</label><input id="iwrs-city" value="Seremban" /></div>
+          <div class="form-group"><label>Postcode</label><input id="iwrs-postcode" value="70000" /></div>
+          <div class="form-group"><label>Phone</label><input id="iwrs-phone" value="+60126781234" /></div>
+          <div class="form-group"><label>Email</label><input id="iwrs-email" value="ahmad@example.com" /></div>
+          <div class="form-group"><label>Branch</label><select id="iwrs-branch"><option value="SRB">Seremban</option><option value="NLI">Nilai</option><option value="PDK">Port Dickson</option><option value="RMB">Rembau</option><option value="KPH">Kuala Pilah</option></select></div>
+          <div class="form-group"><label>Tariff Code</label><input id="iwrs-tariff" value="DOM_A" /></div>
+          <div class="form-group"><label>Meter Ref</label><input id="iwrs-meter" value="MR-99001" /></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="simulateAccountCreated()">Create Account</button>
+          <span id="iwrs-acc-status"></span>
+        </div>
+        <div class="response" id="iwrs-acc-response"></div>
+      </div>
+
+      <div class="card">
+        <h3>Simulate: Invoice Generated</h3>
+        <p class="desc">Simulates iWRS/SiBMA generating a bill for an existing account.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Account Number</label><input id="iwrs-inv-acc" value="1000000001" /></div>
+          <div class="form-group"><label>Total Amount (RM)</label><input id="iwrs-inv-amount" type="number" value="45.60" step="0.01" /></div>
+          <div class="form-group"><label>Tax Amount (RM)</label><input id="iwrs-inv-tax" type="number" value="0" step="0.01" /></div>
+          <div class="form-group"><label>Consumption (m3)</label><input id="iwrs-inv-m3" type="number" value="15" /></div>
+          <div class="form-group"><label>Meter Read Previous</label><input id="iwrs-inv-prev" type="number" value="1000" /></div>
+          <div class="form-group"><label>Meter Read Current</label><input id="iwrs-inv-curr" type="number" value="1015" /></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="simulateInvoiceGenerated()">Generate Invoice</button>
+          <span id="iwrs-inv-status"></span>
+        </div>
+        <div class="response" id="iwrs-inv-response"></div>
+      </div>
+
+      <div class="card">
+        <h3>Simulate: Counter Payment</h3>
+        <p class="desc">Simulates a payment received at SAINS counter via iWRS.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Account Number</label><input id="iwrs-pay-acc" value="1000000001" /></div>
+          <div class="form-group"><label>Amount (RM)</label><input id="iwrs-pay-amount" type="number" value="45.60" step="0.01" /></div>
+          <div class="form-group"><label>Channel</label><select id="iwrs-pay-channel"><option value="COUNTER_CASH">Counter Cash</option><option value="COUNTER_CHEQUE">Counter Cheque</option><option value="COUNTER_CARD">Counter Card</option></select></div>
+          <div class="form-group"><label>Cashier ID</label><input id="iwrs-pay-cashier" value="COUNTER01" /></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="simulateCounterPayment()">Record Payment</button>
+          <span id="iwrs-pay-status"></span>
+        </div>
+        <div class="response" id="iwrs-pay-response"></div>
+      </div>
+    </div>
+
+    <!-- ═══ BANK TAB ═══ -->
+    <div class="tab-content" id="tab-bank">
+      <div class="card">
+        <h3>Generate Bank Statement (MT940)</h3>
+        <p class="desc">Generates a sample MT940 bank statement with payments matching existing accounts.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Bank Name</label><select id="bank-name"><option value="MAYBANK">Maybank</option><option value="CIMB">CIMB</option><option value="RHB">RHB</option></select></div>
+          <div class="form-group"><label>Statement Date</label><input id="bank-date" type="date" /></div>
+          <div class="form-group"><label>Transaction Count</label><input id="bank-count" type="number" value="5" min="1" max="20" /></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="generateMT940()">Generate MT940</button>
+          <span id="bank-status"></span>
+        </div>
+        <div class="response" id="bank-response"></div>
+      </div>
+    </div>
+
+    <!-- ═══ LHDN TAB ═══ -->
+    <div class="tab-content" id="tab-lhdn">
+      <div class="card">
+        <h3>Simulate e-Invoice Response (LHDN MyInvois)</h3>
+        <p class="desc">Simulate LHDN accepting or rejecting an e-invoice submission batch.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Submission Batch ID</label><input id="lhdn-batch-id" placeholder="Enter batch UUID" /></div>
+          <div class="form-group"><label>Response Type</label><select id="lhdn-response"><option value="ACCEPTED">Fully Accepted</option><option value="PARTIAL">Partially Accepted</option><option value="REJECTED">Rejected</option></select></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-success" onclick="simulateEInvoice()">Send Response</button>
+          <span id="lhdn-status"></span>
+        </div>
+        <div class="response" id="lhdn-response-panel"></div>
+      </div>
+    </div>
+
+    <!-- ═══ DUITNOW TAB ═══ -->
+    <div class="tab-content" id="tab-duitnow">
+      <div class="card">
+        <h3>Simulate DuitNow QR Payment</h3>
+        <p class="desc">Simulate a customer completing payment by scanning DuitNow QR code. Sends webhook to AR Hub.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Account Number</label><input id="dn-acc" value="1000000001" /></div>
+          <div class="form-group"><label>Amount (RM)</label><input id="dn-amount" type="number" value="45.60" step="0.01" /></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-success" onclick="simulateDuitNow()">Complete Payment</button>
+          <span id="dn-status"></span>
+        </div>
+        <div class="response" id="dn-response"></div>
+      </div>
+    </div>
+
+    <!-- ═══ FPX TAB ═══ -->
+    <div class="tab-content" id="tab-fpx">
+      <div class="card">
+        <h3>Simulate FPX Payment (IPN Callback)</h3>
+        <p class="desc">Simulate FPX sending an IPN callback after customer completes online banking payment.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Seller Order No</label><input id="fpx-order" placeholder="SAINS-FPX-1000000001-..." /></div>
+          <div class="form-group"><label>Amount (RM)</label><input id="fpx-amount" type="number" value="100.00" step="0.01" /></div>
+          <div class="form-group"><label>Buyer Bank</label><select id="fpx-bank"><option value="MBB0227">Maybank</option><option value="CIMB0227">CIMB</option><option value="RHB0218">RHB</option><option value="PBB0233">Public Bank</option></select></div>
+          <div class="form-group"><label>Status</label><select id="fpx-status"><option value="00">Approved (00)</option><option value="99">Failed (99)</option></select></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-success" onclick="simulateFPX()">Send IPN</button>
+          <span id="fpx-status-msg"></span>
+        </div>
+        <div class="response" id="fpx-response"></div>
+      </div>
+    </div>
+
+    <!-- ═══ JOMPAY TAB ═══ -->
+    <div class="tab-content" id="tab-jompay">
+      <div class="card">
+        <h3>Generate JomPAY Reconciliation File</h3>
+        <p class="desc">Generates a CSV file as the bank would deposit on SFTP for SAINS JomPAY payments.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Batch Date</label><input id="jp-date" type="date" /></div>
+          <div class="form-group"><label>Transaction Count</label><input id="jp-count" type="number" value="5" min="1" max="20" /></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="generateJomPAY()">Generate CSV</button>
+          <span id="jp-status"></span>
+        </div>
+        <div class="response" id="jp-response"></div>
+      </div>
+    </div>
+
+    <!-- ═══ EMANDATE TAB ═══ -->
+    <div class="tab-content" id="tab-emandate">
+      <div class="card">
+        <h3>Simulate Mandate Registration Result</h3>
+        <div class="form-grid">
+          <div class="form-group"><label>Mandate Ref</label><input id="em-ref" placeholder="SAINS-MD-..." /></div>
+          <div class="form-group"><label>Bank Code</label><input id="em-bank" value="MBB0227" /></div>
+          <div class="form-group"><label>Status</label><select id="em-status"><option value="ACTIVE">Active</option><option value="REJECTED">Rejected</option></select></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-success" onclick="simulateMandate()">Submit Result</button>
+          <span id="em-status-msg"></span>
+        </div>
+        <div class="response" id="em-response"></div>
+      </div>
+
+      <div class="card">
+        <h3>Simulate Debit Result</h3>
+        <div class="form-grid">
+          <div class="form-group"><label>Mandate ID</label><input id="em-debit-id" placeholder="PAYNET-MD-..." /></div>
+          <div class="form-group"><label>Amount (RM)</label><input id="em-debit-amt" type="number" value="50.00" step="0.01" /></div>
+          <div class="form-group"><label>Return Code</label><select id="em-return"><option value="SUCCESS">Success</option><option value="NSF">Insufficient Funds (NSF)</option><option value="INVALID_ACCOUNT">Invalid Account</option><option value="STOPPED">Stopped by Customer</option><option value="DECEASED">Deceased</option></select></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-success" onclick="simulateDebit()">Send Result</button>
+          <span id="em-debit-status"></span>
+        </div>
+        <div class="response" id="em-debit-response"></div>
+      </div>
+    </div>
+
+    <!-- ═══ METIS TAB ═══ -->
+    <div class="tab-content" id="tab-metis">
+      <div class="card">
+        <h3>Simulate Work Order Completion</h3>
+        <p class="desc">Simulate Metis field team completing a disconnection or reconnection work order.</p>
+        <div class="form-grid">
+          <div class="form-group"><label>Work Order Ref</label><input id="metis-ref" placeholder="Work order ID or Metis ref" /></div>
+          <div class="form-group"><label>Completion Type</label><select id="metis-type"><option value="DISCONNECTED">Disconnected</option><option value="RECONNECTED">Reconnected</option></select></div>
+          <div class="form-group"><label>Completion Date</label><input id="metis-date" type="date" /></div>
+        </div>
+        <div class="actions">
+          <button class="btn btn-primary" onclick="simulateMetis()">Complete Work Order</button>
+          <span id="metis-status"></span>
+        </div>
+        <div class="response" id="metis-response"></div>
+      </div>
+    </div>
+
+    <!-- ═══ SAP GL TAB ═══ -->
+    <div class="tab-content" id="tab-gl">
+      <div class="card">
+        <h3>GL Posting Log (SAP S/4HANA Simulator)</h3>
+        <p class="desc">Shows all journal entries that AR Hub has posted to "SAP" (captured in dev mode).</p>
+        <div class="actions"><button class="btn btn-sm btn-primary" onclick="loadGLLog()">Refresh</button></div>
+        <div style="overflow-x: auto; margin-top: 12px;">
+          <table class="log-table" id="gl-table">
+            <thead><tr><th>Doc #</th><th>Batch</th><th>Date</th><th>Type</th><th>Debit (RM)</th><th>Credit (RM)</th><th>Lines</th><th>Status</th></tr></thead>
+            <tbody id="gl-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ NOTIFICATIONS TAB ═══ -->
+    <div class="tab-content" id="tab-notifications">
+      <div class="card">
+        <h3>Notification Inbox</h3>
+        <p class="desc">All emails, SMS, and WhatsApp messages sent by AR Hub (captured in dev mode).</p>
+        <div class="actions"><button class="btn btn-sm btn-primary" onclick="loadNotifications()">Refresh</button></div>
+        <div id="notif-list" style="margin-top: 12px;"></div>
+      </div>
+    </div>
+
+    <!-- ═══ EVENT LOG TAB ═══ -->
+    <div class="tab-content" id="tab-eventlog">
+      <div class="card">
+        <h3>Simulator Event Log</h3>
+        <div class="actions"><button class="btn btn-sm btn-primary" onclick="loadEventLog()">Refresh</button></div>
+        <div style="overflow-x: auto; margin-top: 12px;">
+          <table class="log-table" id="event-table">
+            <thead><tr><th>Time</th><th>System</th><th>Direction</th><th>Event</th><th>Account</th><th>Amount</th><th>Status</th><th>ms</th></tr></thead>
+            <tbody id="event-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const BASE = window.location.origin;
+    const AUTH = 'Basic ' + btoa('test-user:test');
+
+    // Set default dates to today
+    document.querySelectorAll('input[type="date"]').forEach(el => {
+      el.value = new Date().toISOString().substring(0, 10);
+    });
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    async function apiCall(action, data) {
+      const resp = await fetch(`${BASE}/simulator/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': AUTH },
+        body: JSON.stringify(data),
+      });
+      return resp.json();
+    }
+
+    async function apiGet(path) {
+      const resp = await fetch(`${BASE}/simulator/${path}`, {
+        headers: { 'Authorization': AUTH },
+      });
+      return resp.json();
+    }
+
+    function showResponse(elId, data, isError) {
+      const el = document.getElementById(elId);
+      el.textContent = JSON.stringify(data, null, 2);
+      el.classList.add('visible');
+      el.classList.toggle('error', !!isError);
+    }
+
+    function setStatus(elId, msg, type) {
+      const el = document.getElementById(elId);
+      el.innerHTML = type === 'loading' ? '<span class="spinner"></span> Processing...'
+        : type === 'success' ? '<span style="color:var(--success)">' + msg + '</span>'
+        : '<span style="color:var(--danger)">' + msg + '</span>';
+    }
+
+    // ── iWRS Actions ──
+    async function simulateAccountCreated() {
+      setStatus('iwrs-acc-status', '', 'loading');
+      try {
+        const result = await apiCall('simulateAccountCreated', {
+          accountNumber: document.getElementById('iwrs-acc-no').value,
+          customerName: document.getElementById('iwrs-cust-name').value,
+          idNumber: document.getElementById('iwrs-id-no').value,
+          idType: document.getElementById('iwrs-id-type').value,
+          accountType: document.getElementById('iwrs-acc-type').value,
+          address1: document.getElementById('iwrs-addr').value,
+          city: document.getElementById('iwrs-city').value,
+          postcode: document.getElementById('iwrs-postcode').value,
+          phone: document.getElementById('iwrs-phone').value,
+          email: document.getElementById('iwrs-email').value,
+          branchCode: document.getElementById('iwrs-branch').value,
+          tariffCode: document.getElementById('iwrs-tariff').value,
+          meterRef: document.getElementById('iwrs-meter').value,
+        });
+        showResponse('iwrs-acc-response', result);
+        setStatus('iwrs-acc-status', 'Account event sent', 'success');
+      } catch (err) {
+        showResponse('iwrs-acc-response', { error: err.message }, true);
+        setStatus('iwrs-acc-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    async function simulateInvoiceGenerated() {
+      setStatus('iwrs-inv-status', '', 'loading');
+      try {
+        const result = await apiCall('simulateInvoiceGenerated', {
+          accountNumber: document.getElementById('iwrs-inv-acc').value,
+          totalAmount: parseFloat(document.getElementById('iwrs-inv-amount').value),
+          taxAmount: parseFloat(document.getElementById('iwrs-inv-tax').value),
+          consumptionM3: parseFloat(document.getElementById('iwrs-inv-m3').value),
+          meterReadPrevious: parseInt(document.getElementById('iwrs-inv-prev').value),
+          meterReadCurrent: parseInt(document.getElementById('iwrs-inv-curr').value),
+        });
+        showResponse('iwrs-inv-response', result);
+        setStatus('iwrs-inv-status', 'Invoice event sent', 'success');
+      } catch (err) {
+        showResponse('iwrs-inv-response', { error: err.message }, true);
+        setStatus('iwrs-inv-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    async function simulateCounterPayment() {
+      setStatus('iwrs-pay-status', '', 'loading');
+      try {
+        const result = await apiCall('simulateCounterPayment', {
+          accountNumber: document.getElementById('iwrs-pay-acc').value,
+          amount: parseFloat(document.getElementById('iwrs-pay-amount').value),
+          channel: document.getElementById('iwrs-pay-channel').value,
+          cashierID: document.getElementById('iwrs-pay-cashier').value,
+        });
+        showResponse('iwrs-pay-response', result);
+        setStatus('iwrs-pay-status', 'Payment event sent', 'success');
+      } catch (err) {
+        showResponse('iwrs-pay-response', { error: err.message }, true);
+        setStatus('iwrs-pay-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── Bank ──
+    async function generateMT940() {
+      setStatus('bank-status', '', 'loading');
+      try {
+        const result = await apiCall('generateMT940', {
+          bankName: document.getElementById('bank-name').value,
+          statementDate: document.getElementById('bank-date').value,
+          transactionCount: parseInt(document.getElementById('bank-count').value),
+        });
+        showResponse('bank-response', result);
+        setStatus('bank-status', `Generated ${result.transactionCount || '?'} transactions`, 'success');
+      } catch (err) {
+        showResponse('bank-response', { error: err.message }, true);
+        setStatus('bank-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── LHDN ──
+    async function simulateEInvoice() {
+      setStatus('lhdn-status', '', 'loading');
+      try {
+        const result = await apiCall('simulateEInvoiceResponse', {
+          submissionBatchID: document.getElementById('lhdn-batch-id').value,
+          responseType: document.getElementById('lhdn-response').value,
+        });
+        showResponse('lhdn-response-panel', result);
+        setStatus('lhdn-status', 'Response sent', 'success');
+      } catch (err) {
+        showResponse('lhdn-response-panel', { error: err.message }, true);
+        setStatus('lhdn-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── DuitNow ──
+    async function simulateDuitNow() {
+      setStatus('dn-status', '', 'loading');
+      try {
+        const result = await apiCall('simulateDuitNowPayment', {
+          accountNumber: document.getElementById('dn-acc').value,
+          amount: parseFloat(document.getElementById('dn-amount').value),
+        });
+        showResponse('dn-response', result);
+        setStatus('dn-status', 'Payment webhook sent', 'success');
+      } catch (err) {
+        showResponse('dn-response', { error: err.message }, true);
+        setStatus('dn-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── FPX ──
+    async function simulateFPX() {
+      setStatus('fpx-status-msg', '', 'loading');
+      try {
+        const result = await apiCall('simulateFPXPayment', {
+          sellerOrderNo: document.getElementById('fpx-order').value,
+          amount: parseFloat(document.getElementById('fpx-amount').value),
+          buyerBankId: document.getElementById('fpx-bank').value,
+          status: document.getElementById('fpx-status').value,
+        });
+        showResponse('fpx-response', result);
+        setStatus('fpx-status-msg', 'IPN sent', 'success');
+      } catch (err) {
+        showResponse('fpx-response', { error: err.message }, true);
+        setStatus('fpx-status-msg', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── JomPAY ──
+    async function generateJomPAY() {
+      setStatus('jp-status', '', 'loading');
+      try {
+        const result = await apiCall('generateJomPAYFile', {
+          batchDate: document.getElementById('jp-date').value,
+          transactionCount: parseInt(document.getElementById('jp-count').value),
+        });
+        showResponse('jp-response', result);
+        setStatus('jp-status', 'CSV generated', 'success');
+      } catch (err) {
+        showResponse('jp-response', { error: err.message }, true);
+        setStatus('jp-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── eMandate ──
+    async function simulateMandate() {
+      setStatus('em-status-msg', '', 'loading');
+      try {
+        const result = await apiCall('simulateMandateRegistered', {
+          mandateRef: document.getElementById('em-ref').value,
+          bankCode: document.getElementById('em-bank').value,
+          status: document.getElementById('em-status').value,
+        });
+        showResponse('em-response', result);
+        setStatus('em-status-msg', 'Result sent', 'success');
+      } catch (err) {
+        showResponse('em-response', { error: err.message }, true);
+        setStatus('em-status-msg', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    async function simulateDebit() {
+      setStatus('em-debit-status', '', 'loading');
+      try {
+        const result = await apiCall('simulateDebitResult', {
+          mandateID: document.getElementById('em-debit-id').value,
+          amount: parseFloat(document.getElementById('em-debit-amt').value),
+          returnCode: document.getElementById('em-return').value,
+        });
+        showResponse('em-debit-response', result);
+        setStatus('em-debit-status', 'Result sent', 'success');
+      } catch (err) {
+        showResponse('em-debit-response', { error: err.message }, true);
+        setStatus('em-debit-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── Metis ──
+    async function simulateMetis() {
+      setStatus('metis-status', '', 'loading');
+      try {
+        const result = await apiCall('simulateWorkOrderCompleted', {
+          workOrderRef: document.getElementById('metis-ref').value,
+          completionDate: document.getElementById('metis-date').value,
+          completionType: document.getElementById('metis-type').value,
+        });
+        showResponse('metis-response', result);
+        setStatus('metis-status', 'Completion sent', 'success');
+      } catch (err) {
+        showResponse('metis-response', { error: err.message }, true);
+        setStatus('metis-status', 'Failed', 'error');
+      }
+      refreshStats();
+    }
+
+    // ── GL Log ──
+    async function loadGLLog() {
+      try {
+        const data = await apiGet('GLPostingLog?$orderby=createdAt desc&$top=50');
+        const rows = data.value || [];
+        document.getElementById('gl-body').innerHTML = rows.map(r => `<tr>
+          <td>${r.documentNumber || '-'}</td>
+          <td style="font-size:11px">${(r.batchID || '').substring(0, 8)}...</td>
+          <td>${r.postingDate || '-'}</td>
+          <td>${r.documentType || '-'}</td>
+          <td style="text-align:right">${(r.totalDebitAmount || 0).toFixed(2)}</td>
+          <td style="text-align:right">${(r.totalCreditAmount || 0).toFixed(2)}</td>
+          <td style="text-align:center">${r.lineCount || 0}</td>
+          <td><span class="badge-status ${(r.status || '').toLowerCase()}">${r.status}</span></td>
+        </tr>`).join('');
+      } catch (err) { console.error(err); }
+    }
+
+    // ── Notifications ──
+    async function loadNotifications() {
+      try {
+        const data = await apiGet('NotificationInbox?$orderby=createdAt desc&$top=50');
+        const rows = data.value || [];
+        const icons = { EMAIL: '\u2709', SMS: '\ud83d\udcf1', WHATSAPP: '\ud83d\udcac', POSTAL: '\ud83d\udcee', SYSTEM_ALERT: '\u26a0\ufe0f' };
+        document.getElementById('notif-list').innerHTML = rows.length === 0
+          ? '<p style="color:var(--text-muted);padding:20px;text-align:center;">No notifications yet. Trigger events to see emails and SMS here.</p>'
+          : rows.map(r => `<div class="notification-item">
+            <div class="channel-icon ${(r.channel || '').toLowerCase()}">${icons[r.channel] || '\ud83d\udce8'}</div>
+            <div class="notif-content">
+              <div class="notif-subject">[${r.channel}] ${r.subject || 'No subject'}</div>
+              <div class="notif-body">${(r.body || '').substring(0, 200)}</div>
+              <div class="notif-meta">To: ${r.recipient || '-'} | Account: ${r.accountNumber || '-'} | ${r.createdAt || ''}</div>
+            </div>
+          </div>`).join('');
+      } catch (err) { console.error(err); }
+    }
+
+    // ── Event Log ──
+    async function loadEventLog() {
+      try {
+        const data = await apiGet('EventLog?$orderby=createdAt desc&$top=100');
+        const rows = data.value || [];
+        const systemClass = (s) => {
+          if (s === 'IWRS') return 'iwrs';
+          if (s === 'LHDN') return 'lhdn';
+          if (s?.startsWith('PAYNET')) return 'paynet';
+          if (s === 'METIS') return 'metis';
+          if (s === 'BANK') return 'bank';
+          if (s === 'SAP_GL') return 'sap';
+          return '';
+        };
+        document.getElementById('event-body').innerHTML = rows.map(r => `<tr>
+          <td style="font-size:11px">${(r.createdAt || '').substring(11, 19)}</td>
+          <td><span class="system-badge ${systemClass(r.system)}">${r.system}</span></td>
+          <td>${r.direction || '-'}</td>
+          <td>${r.eventType || '-'}</td>
+          <td>${r.accountNumber || '-'}</td>
+          <td style="text-align:right">${r.amount ? parseFloat(r.amount).toFixed(2) : '-'}</td>
+          <td><span class="badge-status ${(r.status || '').toLowerCase()}">${r.status}</span></td>
+          <td style="text-align:right">${r.processingMs || '-'}</td>
+        </tr>`).join('');
+      } catch (err) { console.error(err); }
+    }
+
+    // ── Stats refresh ──
+    async function refreshStats() {
+      try {
+        const data = await apiGet('getDashboardSummary()');
+        const stats = data;
+        document.getElementById('statTotal').textContent = stats.totalEvents || 0;
+        document.getElementById('statIWRS').textContent = stats.iwrsEvents || 0;
+        document.getElementById('statPayments').textContent = stats.paymentEvents || 0;
+        document.getElementById('statEInvoice').textContent = stats.einvoiceEvents || 0;
+        document.getElementById('statGL').textContent = stats.glPostings || 0;
+        document.getElementById('statNotif').textContent = stats.notifications || 0;
+        document.getElementById('lastRefresh').textContent = 'Last: ' + new Date().toLocaleTimeString();
+      } catch (err) { console.error('Stats refresh failed', err); }
+    }
+
+    // Initial load
+    refreshStats();
+    setInterval(refreshStats, 15000);
+  </script>
+  <!-- Training Overlay System -->
+  <link rel="stylesheet" href="/training/training-styles.css">
+  <script src="/training/training-overlay.js"></script>
+  <script src="/training/training-content.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      TrainingOverlay.init({
+        pageId: 'simulator',
+        steps: TrainingContent.simulator,
+        autoShow: false
+      });
+    });
+  </script>
+</body>
+</html>

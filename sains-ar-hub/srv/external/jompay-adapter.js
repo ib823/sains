@@ -46,9 +46,26 @@ async function downloadReconciliationFile(fileDate) {
   // const content = await sftp.get(`${JOMPAY_CONFIG.ACQUIRER_SFTP_PATH}/${fileName}`);
   // await sftp.end();
 
-  // For now: read from local upload or BTP Object Store
-  // TBC: implement SFTP download
-  throw new Error('JomPAY SFTP download: TBC — implement with ssh2-sftp-client after biller registration');
+  // Check if SFTP is configured
+  if (!JOMPAY_CONFIG.ACQUIRER_SFTP_HOST || JOMPAY_CONFIG.ACQUIRER_SFTP_HOST.startsWith('/*')) {
+    logger.warn(`JomPAY SFTP not configured — returning empty file (POC/dev mode)`);
+    return {
+      success: false,
+      fileName,
+      rawContent: null,
+      dev: true,
+      reason: 'TBC: JomPAY SFTP not configured — use manual CSV upload or simulator instead',
+    };
+  }
+
+  // Production: implement SFTP download using ssh2-sftp-client
+  // const sftp = new SFTPClient();
+  // await sftp.connect({ host: JOMPAY_CONFIG.ACQUIRER_SFTP_HOST, port: 22, username: JOMPAY_CONFIG.ACQUIRER_SFTP_USER, privateKey });
+  // const content = await sftp.get(`${JOMPAY_CONFIG.ACQUIRER_SFTP_PATH}/${fileName}`);
+  // await sftp.end();
+  // return { success: true, fileName, rawContent: content.toString(JOMPAY_CONFIG.ENCODING) };
+
+  throw new Error('JomPAY SFTP download: SFTP credentials configured but ssh2-sftp-client not yet implemented');
 }
 
 /**

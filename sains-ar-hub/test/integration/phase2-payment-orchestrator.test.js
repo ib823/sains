@@ -281,10 +281,13 @@ describe('Phase 2 — Payment Orchestrator Integration Tests', () => {
         expect(result.mandateRef).toContain('SAINS-MD');
         nock.cleanAll();
       } else {
-        // Without nock, test that function exists and has correct signature
+        // Without nock, test that function exists and returns dev-mode mock response
         expect(typeof initiateRegistration).toBe('function');
-        // Calling without mock will throw due to TBC endpoint — verify the error is meaningful
-        await expect(initiateRegistration(account, params)).rejects.toThrow();
+        const result = await initiateRegistration(account, params);
+        expect(result.registrationURL).toBeDefined();
+        expect(result.registrationURL).toContain('http');
+        expect(result.mandateRef).toContain('SAINS-MD');
+        expect(result.dev).toBe(true);
       }
     });
   });

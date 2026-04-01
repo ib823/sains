@@ -24,7 +24,7 @@ module.exports = cds.service.impl(async function() {
     const allInvoices = await db.run(
       SELECT.from('sains.ar.Invoice')
         .columns('totalAmount')
-        .where({ invoiceDate: { '>=': `${periodYear}-01-01` }, status: { not: 'REVERSED' } })
+        .where({ invoiceDate: { '>=': `${periodYear}-01-01` }, status: { '!=': 'REVERSED' } })
     );
     const annualBilledRevenue = allInvoices.reduce((s, i) => s + (i.totalAmount || 0), 0);
     const dso = annualBilledRevenue > 0 ? (totalOpenAR / (annualBilledRevenue / 365)) : 0;
@@ -44,11 +44,11 @@ module.exports = cds.service.impl(async function() {
     for (const at of accountTypes) {
       const billed = await db.run(
         SELECT.one.from('sains.ar.Invoice').columns('sum(totalAmount) as total')
-          .where({ invoiceDate: { between: startDate, and: endDate }, status: { not: 'REVERSED' } })
+          .where({ invoiceDate: { between: startDate, and: endDate }, status: { '!=': 'REVERSED' } })
       );
       const collected = await db.run(
         SELECT.one.from('sains.ar.Payment').columns('sum(amount) as total')
-          .where({ paymentDate: { between: startDate, and: endDate }, status: { not: 'REVERSED' } })
+          .where({ paymentDate: { between: startDate, and: endDate }, status: { '!=': 'REVERSED' } })
       );
       const totalBilled = billed?.total || 0;
       const totalCollected = collected?.total || 0;
@@ -85,7 +85,7 @@ module.exports = cds.service.impl(async function() {
     const invoices = await db.run(
       SELECT.from('sains.ar.Invoice')
         .columns('invoiceType', 'totalAmount', 'taxAmount')
-        .where({ invoiceDate: { between: startDate, and: endDate }, status: { not: 'REVERSED' } })
+        .where({ invoiceDate: { between: startDate, and: endDate }, status: { '!=': 'REVERSED' } })
     );
 
     const categories = {};
@@ -140,7 +140,7 @@ module.exports = cds.service.impl(async function() {
     );
     const payments = await db.run(
       SELECT.from('sains.ar.Payment')
-        .where({ account_ID: accountID, paymentDate: { between: fromDate, and: toDate }, status: { not: 'REVERSED' } })
+        .where({ account_ID: accountID, paymentDate: { between: fromDate, and: toDate }, status: { '!=': 'REVERSED' } })
         .orderBy({ paymentDate: 'asc' })
     );
 

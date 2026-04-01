@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAINS AR Hub — Executive Demo</title>
+  <style>
+    :root {
+      --sains-blue: #0054a6;
+      --sains-dark: #003d7a;
+      --sains-accent: #00a6d6;
+      --water: linear-gradient(135deg, #0054a6 0%, #00a6d6 50%, #00c9b7 100%);
+      --bg: #0f1419;
+      --card: #1a2332;
+      --card-border: #2d3f54;
+      --text: #e8edf2;
+      --text-muted: #8b99a8;
+      --success: #3fb950;
+      --warning: #d29922;
+      --danger: #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Presentation header ── */
+    .pres-header { background: var(--water); padding: 20px 40px; display: flex; align-items: center; justify-content: space-between; }
+    .pres-header h1 { font-size: 18px; font-weight: 700; color: white; }
+    .pres-nav { display: flex; gap: 8px; align-items: center; }
+    .pres-nav button { background: rgba(255,255,255,0.2); border: none; color: white; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 600; transition: 0.15s; }
+    .pres-nav button:hover { background: rgba(255,255,255,0.3); }
+    .pres-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+    .pres-nav .counter { color: rgba(255,255,255,0.7); font-size: 13px; min-width: 80px; text-align: center; }
+
+    /* ── Progress bar ── */
+    .progress-bar { height: 5px; background: rgba(0,0,0,0.3); }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, #0054a6, #00a6d6, #00c9b7); transition: width 0.5s; }
+
+    /* ── Slide container ── */
+    .slide-container { max-width: 1100px; margin: 0 auto; padding: 40px; min-height: calc(100vh - 100px); display: flex; flex-direction: column; }
+
+    /* ── Slides (see transition rules below) ── */
+
+    /* ── Title slide ── */
+    .title-slide { justify-content: center; align-items: center; text-align: center; gap: 20px; }
+    .title-slide h2 { font-size: 42px; font-weight: 800; background: var(--water); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2; }
+    .title-slide .subtitle { font-size: 20px; color: var(--text-muted); margin-top: 8px; }
+    .title-slide .meta { font-size: 14px; color: var(--text-muted); margin-top: 32px; padding-top: 20px; border-top: 1px solid var(--card-border); }
+
+    /* ── Content slides ── */
+    .scenario-header { margin-bottom: 28px; }
+    .scenario-num { font-size: 12px; color: var(--sains-accent); font-weight: 700; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+    .scenario-title { font-size: 32px; font-weight: 700; line-height: 1.2; }
+    .scenario-desc { font-size: 16px; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
+
+    /* ── Step cards ── */
+    .steps { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+    .step { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 20px 24px; display: flex; gap: 16px; align-items: flex-start; transition: 0.2s; }
+    .step:hover { border-color: var(--sains-accent); }
+    .step-num { background: var(--sains-blue); color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+    .step-content { flex: 1; }
+    .step-action { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+    .step-detail { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+    .step-link { display: inline-block; margin-top: 8px; background: var(--sains-blue); color: white; padding: 6px 16px; border-radius: 6px; text-decoration: none; font-size: 12px; font-weight: 600; transition: 0.15s; }
+    .step-link:hover { background: var(--sains-accent); }
+
+    /* ── Presenter notes ── */
+    .presenter-notes { background: rgba(0,166,214,0.08); border: 1px solid rgba(0,166,214,0.2); border-radius: 10px; padding: 16px 20px; margin-top: 20px; }
+    .presenter-notes .label { font-size: 11px; color: var(--sains-accent); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .presenter-notes p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── Value prop cards ── */
+    .value-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 20px; }
+    .value-card { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 24px; }
+    .value-card .icon { font-size: 28px; margin-bottom: 12px; }
+    .value-card h4 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .value-card p { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+    .value-card .metric { font-size: 24px; font-weight: 800; color: var(--sains-accent); margin-top: 8px; }
+
+    /* ── Architecture diagram ── */
+    .arch-box { background: var(--card); border: 1px solid var(--card-border); border-radius: 12px; padding: 28px; text-align: center; }
+    .arch-row { display: flex; gap: 12px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+    .arch-node { padding: 10px 18px; border-radius: 8px; font-size: 12px; font-weight: 600; }
+    .arch-node.external { background: #1e293b; border: 1px solid #334155; color: #94a3b8; }
+    .arch-node.hub { background: var(--sains-blue); color: white; font-size: 14px; padding: 14px 28px; }
+    .arch-node.output { background: #1a2332; border: 1px solid #2d3f54; color: #8b99a8; }
+    .arch-arrow { color: var(--sains-accent); font-size: 20px; margin: 4px 0; }
+    .arch-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Breadcrumb nav ── */
+    .breadcrumb-bar { background: rgba(0,0,0,0.25); padding: 8px 40px; font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
+    .breadcrumb-bar a { color: var(--sains-accent); text-decoration: none; font-weight: 500; }
+    .breadcrumb-bar a:hover { text-decoration: underline; }
+    .breadcrumb-bar .sep { opacity: 0.4; margin: 0 2px; }
+    .breadcrumb-bar .current { color: var(--text); font-weight: 600; }
+
+    /* ── Keyboard hint (header inline) ── */
+    .key-hint-header { font-size: 11px; color: rgba(255,255,255,0.55); margin-right: 12px; white-space: nowrap; }
+    .key-hint-header kbd { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.8); }
+    kbd { background: #2d3f54; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin: 0 2px; }
+
+    /* ── Slide transitions ── */
+    .slide { display: none; flex: 1; }
+    .slide.active { display: flex; flex-direction: column; animation: fadeIn 0.3s ease forwards; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body>
+<main>
+
+  <header class="pres-header">
+    <h1>SAINS AR Hub &mdash; Executive Demonstration</h1>
+    <div class="pres-nav">
+      <span class="key-hint-header"><kbd>&larr;</kbd> <kbd>&rarr;</kbd> or <kbd>Space</kbd> to navigate &bull; <kbd>F</kbd> for fullscreen</span>
+      <button onclick="prevSlide()" id="btnPrev" aria-label="Previous slide">&larr; Previous</button>
+      <span class="counter" id="slideCounter">1 / 11</span>
+      <button onclick="nextSlide()" id="btnNext" aria-label="Next slide">Next &rarr;</button>
+    </div>
+  </header>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+  <nav class="breadcrumb-bar" aria-label="Breadcrumb">
+    <span>SAINS AR Hub</span>
+    <span class="sep">&rsaquo;</span>
+    <a href="/launchpad/">Launchpad</a>
+    <span class="sep">|</span>
+    <span class="current">Demo Presentation</span>
+    <span class="sep">|</span>
+    <a href="/simulator-dashboard/">Simulator</a>
+  </nav>
+
+  <div class="slide-container" role="presentation">
+
+    <!-- ═══ SLIDE 0: TITLE ═══ -->
+    <div class="slide title-slide active" data-slide="0" role="tabpanel" aria-label="Title slide">
+      <h2>SAINS AR Hub</h2>
+      <div class="subtitle">Integrated Accounts Receivable Management System<br>Proof of Concept Demonstration</div>
+      <div class="meta">
+        Syarikat Air Negeri Sembilan Sdn. Bhd.<br>
+        Prepared for SAINS Management &mdash; April 2026
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 1: OVERVIEW ═══ -->
+    <div class="slide" data-slide="1" role="tabpanel" aria-label="System Overview">
+      <div class="scenario-header">
+        <div class="scenario-num">System Overview</div>
+        <div class="scenario-title">What is SAINS AR Hub?</div>
+        <div class="scenario-desc">A unified Accounts Receivable subledger purpose-built for Malaysian water utilities, replacing fragmented spreadsheets and manual processes with automated, auditable workflows.</div>
+      </div>
+      <div class="value-grid">
+        <div class="value-card">
+          <div class="icon">&#128100;</div>
+          <h4>490,000 Accounts</h4>
+          <p>Manages the entire SAINS consumer base: domestic, commercial, industrial, government, and institutional accounts across all Negeri Sembilan branches.</p>
+        </div>
+        <div class="value-card">
+          <div class="icon">&#128179;</div>
+          <h4>8 Payment Channels</h4>
+          <p>Counter (cash/cheque/card), FPX online banking, DuitNow QR, JomPAY, eMandate direct debit, agent collection, Bayaran Pukal, bank transfer.</p>
+        </div>
+        <div class="value-card">
+          <div class="icon">&#128220;</div>
+          <h4>LHDN e-Invoice Ready</h4>
+          <p>Full MyInvois integration: B2B individual submission, B2C monthly consolidation, 72-hour cancellation, digital signature (SHA256/RSA).</p>
+        </div>
+        <div class="value-card">
+          <div class="icon">&#127963;</div>
+          <h4>SPAN Compliant</h4>
+          <p>Automated KPI generation for SPAN regulatory reporting: collection ratio, billing accuracy, complaints, disconnections.</p>
+        </div>
+        <div class="value-card">
+          <div class="icon">&#129504;</div>
+          <h4>Intelligent Collections</h4>
+          <p>AI-driven customer segmentation, risk scoring, early intervention alerts, hardship protection, vulnerability management.</p>
+        </div>
+        <div class="value-card">
+          <div class="icon">&#128274;</div>
+          <h4>Full Audit Trail</h4>
+          <p>Every action logged with before/after state. PDPA compliant (IC numbers AES-256 encrypted). Role-based access for 14 distinct roles.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 2: ARCHITECTURE ═══ -->
+    <div class="slide" data-slide="2" role="tabpanel" aria-label="Architecture">
+      <div class="scenario-header">
+        <div class="scenario-num">Architecture</div>
+        <div class="scenario-title">How it Connects</div>
+        <div class="scenario-desc">AR Hub sits between SAINS's existing systems and provides a unified AR subledger with real-time integration.</div>
+      </div>
+      <div class="arch-box">
+        <div class="arch-label">INBOUND SYSTEMS</div>
+        <div class="arch-row">
+          <div class="arch-node external">&#128187; iWRS / SiBMA<br><small>Accounts, Invoices, Counter Payments</small></div>
+          <div class="arch-node external">&#127975; Banks (SFTP)<br><small>MT940 / CAMT.053 Statements</small></div>
+          <div class="arch-node external">&#128241; PayNet<br><small>FPX, DuitNow, JomPAY, eMandate</small></div>
+          <div class="arch-node external">&#128295; Metis<br><small>Disconnection/Reconnection</small></div>
+        </div>
+        <div class="arch-arrow">&darr; &darr; &darr; &darr;</div>
+        <div class="arch-row">
+          <div class="arch-node hub">SAINS AR Hub<br>11 Services &bull; FIFO Clearing Engine &bull; Dunning Engine &bull; Fraud Detection</div>
+        </div>
+        <div class="arch-arrow">&darr; &darr; &darr; &darr;</div>
+        <div class="arch-label">OUTBOUND SYSTEMS</div>
+        <div class="arch-row">
+          <div class="arch-node output">&#128200; SAP S/4HANA<br><small>GL Journal Entries</small></div>
+          <div class="arch-node output">&#128220; LHDN MyInvois<br><small>e-Invoice Submission</small></div>
+          <div class="arch-node output">&#128172; WhatsApp / SMS<br><small>Customer Notifications</small></div>
+          <div class="arch-node output">&#127760; iSAINS Portal<br><small>Customer Self-Service</small></div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Presenter Note</div>
+        <p>All connections shown here are working in this POC with simulated external systems. When SAP BTP is provisioned, the same codebase deploys to Cloud Foundry &mdash; we swap SQLite for HANA Cloud and mocked auth for XSUAA. Zero code changes to business logic.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 3: SCENARIO 1 ═══ -->
+    <div class="slide" data-slide="3" role="tabpanel" aria-label="Scenario 1 - New Customer">
+      <div class="scenario-header">
+        <div class="scenario-num">Live Demo &mdash; Scenario 1</div>
+        <div class="scenario-title">New Customer &amp; First Invoice</div>
+        <div class="scenario-desc">Watch a new customer account flow from iWRS into AR Hub, receive their first invoice, and see the data appear in real-time.</div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-action">Open the Simulator Dashboard</div>
+            <div class="step-detail">This represents SAINS's existing systems (iWRS, banks, LHDN, PayNet). In production, these are real API connections.</div>
+            <a class="step-link" href="/simulator-dashboard/" target="_blank">Open Simulator &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-action">Simulate: iWRS creates a new customer account</div>
+            <div class="step-detail">In the iWRS tab, click <strong>"Create Account"</strong> with the default values (Ahmad bin Abdullah, Seremban). This simulates iWRS sending an account creation event to AR Hub via REST API.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-action">View the new account in Customer Accounts</div>
+            <div class="step-detail">Open Customer Accounts, search for account number "1000000099". The account appears with all details populated from the iWRS event. IC number is AES-256 encrypted.</div>
+            <a class="step-link" href="/$fiori-preview/ARService/CustomerAccounts#preview-app" target="_blank">Open Customer Accounts &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-action">Simulate: iWRS generates the first invoice</div>
+            <div class="step-detail">Back in the simulator, go to <strong>"Simulate: Invoice Generated"</strong>. Enter account number "1000000099", amount RM 45.60, consumption 15 m3. Click <strong>"Generate Invoice"</strong>.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <div class="step-action">View the invoice in Invoice Management</div>
+            <div class="step-detail">Open Invoices. The new invoice appears with status OPEN, due date 21 days out, line items, meter reads, and consumption data.</div>
+            <a class="step-link" href="/$fiori-preview/ARService/Invoices#preview-app" target="_blank">Open Invoices &rarr;</a>
+          </div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Key Message</div>
+        <p>Account and invoice data flows automatically from iWRS into AR Hub within milliseconds. No manual data entry, no spreadsheets, no lag. The same REST API pattern works with any billing system vendor.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 4: SCENARIO 2 ═══ -->
+    <div class="slide" data-slide="4" role="tabpanel" aria-label="Scenario 2 - DuitNow Payment">
+      <div class="scenario-header">
+        <div class="scenario-num">Live Demo &mdash; Scenario 2</div>
+        <div class="scenario-title">Customer Payment via DuitNow QR</div>
+        <div class="scenario-desc">A customer scans a DuitNow QR code on their bill, pays through their banking app, and the payment is automatically cleared against their invoice &mdash; in real-time.</div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-action">Check account balance before payment</div>
+            <div class="step-detail">Open Customer Accounts, find account "1000000002" (Siti Nurhaliza). Balance: RM 32.40 outstanding.</div>
+            <a class="step-link" href="/$fiori-preview/ARService/CustomerAccounts#preview-app" target="_blank">Open Customer Accounts &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-action">Simulate: Customer pays via DuitNow QR</div>
+            <div class="step-detail">In the Simulator, go to <strong>DuitNow QR</strong> tab. Enter account "1000000002", amount RM 32.40. Click <strong>"Complete Payment"</strong>. This simulates PayNet sending a payment webhook.</div>
+            <a class="step-link" href="/simulator-dashboard/" target="_blank">Open Simulator &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-action">View payment &amp; automatic clearing</div>
+            <div class="step-detail">Open Payments. A new DuitNow QR payment appears with status ALLOCATED. The FIFO clearing engine automatically matched it to the oldest open invoice and cleared it.</div>
+            <a class="step-link" href="/$fiori-preview/ARService/Payments#preview-app" target="_blank">Open Payments &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <div class="step-action">Verify: Account balance is now zero</div>
+            <div class="step-detail">Go back to Customer Accounts, refresh account "1000000002". Balance should now be RM 0.00. Invoice status changed from OPEN to CLEARED.</div>
+          </div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Key Message</div>
+        <p>Payment processing is fully automated. When a customer pays via DuitNow QR, the system receives the webhook, creates a payment record, runs the FIFO clearing engine, updates the invoice and account balance, and posts to GL &mdash; all in under 1 second. No manual reconciliation needed.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 5: SCENARIO 3 ═══ -->
+    <div class="slide" data-slide="5" role="tabpanel" aria-label="Scenario 3 - Dunning">
+      <div class="scenario-header">
+        <div class="scenario-num">Live Demo &mdash; Scenario 3</div>
+        <div class="scenario-title">Dunning Lifecycle &amp; Disconnection</div>
+        <div class="scenario-desc">An overdue account escalates through 5 dunning levels, from friendly reminder to physical disconnection via Metis field work order.</div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-action">View existing dunning records</div>
+            <div class="step-detail">Open Dunning History. Accounts at different dunning levels are visible: Level 1 (14 days overdue, friendly SMS/email), Level 2 (30 days, formal notice), Level 3 (45 days, disconnection warning), Level 4 (60 days, disconnected).</div>
+            <a class="step-link" href="/$fiori-preview/ARService/DunningHistories#preview-app" target="_blank">Open Dunning History &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-action">Check notifications sent</div>
+            <div class="step-detail">In the Simulator Dashboard, go to <strong>Notifications</strong> tab. All dunning emails, SMS, and WhatsApp reminders sent by the system are captured here. In production, these go to real recipients.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-action">View a Level 4 account with disconnection</div>
+            <div class="step-detail">Search Customer Accounts for status "TEMP_DISCONNECTED". These accounts have been physically disconnected via Metis work order. When they pay, AR Hub automatically sends a reconnection work order.</div>
+            <a class="step-link" href="/$fiori-preview/ARService/CustomerAccounts#preview-app" target="_blank">Open Customer Accounts &rarr;</a>
+          </div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Key Message</div>
+        <p>The 5-level dunning process follows Act 655 (Akta Industri Perkhidmatan Air 2006) requirements. Multi-channel notices (email, SMS, WhatsApp, postal) with configurable thresholds. Hardship-flagged and vulnerable customers have capped dunning per social protection policy. Disconnection work orders are automatically dispatched to Metis, and reconnection is triggered the moment payment clears.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 6: SCENARIO 4 ═══ -->
+    <div class="slide" data-slide="6" role="tabpanel" aria-label="Scenario 4 - Bank Reconciliation">
+      <div class="scenario-header">
+        <div class="scenario-num">Live Demo &mdash; Scenario 4</div>
+        <div class="scenario-title">Bank Statement Reconciliation</div>
+        <div class="scenario-desc">Daily bank statements arrive via SFTP. AR Hub parses MT940/CAMT.053 files, auto-matches transactions to customer payments, and flags unmatched items for Finance review.</div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-action">Generate a sample bank statement</div>
+            <div class="step-detail">In the Simulator, go to <strong>Bank Statements</strong> tab. Select "Maybank", today's date, 5 transactions. Click <strong>"Generate MT940"</strong>. This creates a realistic MT940 file with payments matching actual SAINS accounts.</div>
+            <a class="step-link" href="/simulator-dashboard/" target="_blank">Open Simulator &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-action">View the generated MT940 content</div>
+            <div class="step-detail">The response panel shows the raw MT940 file with SWIFT-standard formatting: opening balance, credit entries for each payment, closing balance. This is exactly what Maybank deposits on SFTP daily.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-action">View Bank Statement Imports</div>
+            <div class="step-detail">Open Bank Statement Imports in the AR service. Shows imported statements with matched/unmatched counts, auto-match confidence scores, and reconciliation status.</div>
+            <a class="step-link" href="/$fiori-preview/ARService/BankStatementImports#preview-app" target="_blank">Open Bank Statements &rarr;</a>
+          </div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Key Message</div>
+        <p>Bank reconciliation runs 3x daily (08:00, 12:00, 18:00). Supports both MT940 (current SWIFT standard) and CAMT.053 (ISO 20022 future standard). Auto-matching by account reference eliminates hours of manual matching. Finance only reviews the exceptions.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 7: SCENARIO 5 ═══ -->
+    <div class="slide" data-slide="7" role="tabpanel" aria-label="Scenario 5 - e-Invoice">
+      <div class="scenario-header">
+        <div class="scenario-num">Live Demo &mdash; Scenario 5</div>
+        <div class="scenario-title">e-Invoice (LHDN MyInvois)</div>
+        <div class="scenario-desc">Commercial invoices are automatically submitted to LHDN MyInvois. B2C domestic invoices are consolidated monthly. Full compliance with the Malaysia e-Invoice mandate.</div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-action">View e-Invoice submission batches</div>
+            <div class="step-detail">Open e-Invoice Submission Batches. Shows batches with status (Preparing, Submitted, Fully Accepted, Partially Accepted, Rejected) and LHDN submission UIDs.</div>
+            <a class="step-link" href="/$fiori-preview/EInvoiceExcellenceService/SubmissionBatches#preview-app" target="_blank">Open e-Invoice &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-action">View invoices with e-Invoice status</div>
+            <div class="step-detail">Open Invoices and filter by einvoiceRequired = true. Commercial/industrial invoices show e-invoice status: SUBMITTED, ACCEPTED (with LHDN UUID), or HELD_NO_TIN (buyer TIN not verified).</div>
+            <a class="step-link" href="/$fiori-preview/ARService/Invoices#preview-app" target="_blank">Open Invoices &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-action">72-hour cancellation window</div>
+            <div class="step-detail">Each accepted e-invoice has a cancellation deadline (72 hours from LHDN validation). After this window, only a credit note can reverse it &mdash; enforced by the system.</div>
+          </div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Key Message</div>
+        <p>SAINS serves ~490,000 accounts. B2B invoices (commercial, industrial, government) require individual e-invoice submission with verified buyer TIN. B2C domestic invoices are consolidated monthly (due by 7th of following month). The system handles all this automatically &mdash; Finance only manages exceptions and the HELD_NO_TIN queue.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 8: SCENARIO 6 ═══ -->
+    <div class="slide" data-slide="8" role="tabpanel" aria-label="Scenario 6 - GL Posting">
+      <div class="scenario-header">
+        <div class="scenario-num">Live Demo &mdash; Scenario 6</div>
+        <div class="scenario-title">GL Posting &amp; Financial Controls</div>
+        <div class="scenario-desc">Every AR transaction generates journal entries for SAP S/4HANA. Daily batch posting, write-off approval matrix, period close workflows.</div>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <div class="step-action">View GL Account Mappings</div>
+            <div class="step-detail">Open GL Account Mappings. Shows how each transaction type (invoice, payment, adjustment, deposit, write-off) maps to debit and credit GL accounts.</div>
+            <a class="step-link" href="/$fiori-preview/AdminService/GLAccountMappings#preview-app" target="_blank">Open GL Mappings &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <div class="step-action">View captured GL postings</div>
+            <div class="step-detail">In the Simulator, go to <strong>SAP GL</strong> tab. Shows all journal entries that AR Hub has generated. In production, these post to SAP S/4HANA via OData V2 API.</div>
+            <a class="step-link" href="/simulator-dashboard/" target="_blank">Open Simulator &rarr;</a>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <div class="step-action">View Write-Off approval matrix</div>
+            <div class="step-detail">Write-offs require 3-level approval: Supervisor (&lt;RM500), Manager (&lt;RM5,000), CFO (&lt;RM20,000), Board (&ge;RM20,000). GL posting happens automatically upon final approval.</div>
+            <a class="step-link" href="/$fiori-preview/ARService/WriteOffs#preview-app" target="_blank">Open Write-Offs &rarr;</a>
+          </div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Key Message</div>
+        <p>Complete financial controls: every ringgit is tracked from invoice to payment to GL. Daily batch posting at 02:00 MYT aggregates all transactions. Debit-credit balance validation prevents posting errors. The audit trail captures who approved what, when, and why.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 9: WHAT'S NEXT ═══ -->
+    <div class="slide" data-slide="9" role="tabpanel" aria-label="Implementation Roadmap">
+      <div class="scenario-header">
+        <div class="scenario-num">Implementation Roadmap</div>
+        <div class="scenario-title">From POC to Production</div>
+        <div class="scenario-desc">This POC runs the exact same code that will run on SAP BTP in production. Here's what changes.</div>
+      </div>
+      <div class="value-grid">
+        <div class="value-card">
+          <div class="icon">&#128268;</div>
+          <h4>Phase 1: BTP Provisioning</h4>
+          <p>Provision SAP BTP Cloud Foundry, HANA Cloud, XSUAA. Deploy the same codebase &mdash; swap SQLite for HANA, mocked auth for XSUAA.</p>
+          <div class="metric">Zero code changes</div>
+        </div>
+        <div class="value-card">
+          <div class="icon">&#128260;</div>
+          <h4>Phase 2: External Connections</h4>
+          <p>Connect real iWRS API (Pattern A REST or Pattern B SFTP), bank SFTP for MT940, LHDN MyInvois, PayNet payment channels.</p>
+          <div class="metric">12 adapters ready</div>
+        </div>
+        <div class="value-card">
+          <div class="icon">&#127916;</div>
+          <h4>Phase 3: UAT &amp; Go-Live</h4>
+          <p>User acceptance testing with real SAINS data, staff training, parallel run with existing processes, cutover planning.</p>
+          <div class="metric">Same codebase</div>
+        </div>
+      </div>
+      <div class="presenter-notes">
+        <div class="label">Key Message</div>
+        <p>This is not a mockup or a prototype. This is production-grade code running with simulated external systems. Every service, every handler, every business rule you saw today is the actual code that will run in production. The only changes are infrastructure configuration &mdash; the business logic is complete.</p>
+      </div>
+    </div>
+
+    <!-- ═══ SLIDE 10: CLOSE ═══ -->
+    <div class="slide title-slide" data-slide="10" role="tabpanel" aria-label="Closing slide">
+      <h2>Thank You</h2>
+      <div class="subtitle">
+        SAINS AR Hub &mdash; Production-ready, demonstrated live<br><br>
+        <strong>11 services</strong> &bull; <strong>8 payment channels</strong> &bull; <strong>12 external integrations</strong><br>
+        <strong>LHDN e-Invoice</strong> &bull; <strong>SPAN compliant</strong> &bull; <strong>Full audit trail</strong>
+      </div>
+      <div class="meta" style="margin-top: 40px;">
+        <a href="/launchpad/" style="color: white; background: rgba(255,255,255,0.2); padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600;">Explore the Full System &rarr;</a>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+  <script>
+    let current = 0;
+    const slides = document.querySelectorAll('.slide');
+    const total = slides.length;
+
+    function showSlide(n) {
+      current = Math.max(0, Math.min(n, total - 1));
+      slides.forEach((s, i) => s.classList.toggle('active', i === current));
+      document.getElementById('slideCounter').textContent = `${current + 1} / ${total}`;
+      document.getElementById('progressFill').style.width = `${((current + 1) / total) * 100}%`;
+      document.getElementById('btnPrev').disabled = current === 0;
+      document.getElementById('btnNext').disabled = current === total - 1;
+    }
+
+    function nextSlide() { showSlide(current + 1); }
+    function prevSlide() { showSlide(current - 1); }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+      if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+      if (e.key === 'f' || e.key === 'F') {
+        if (document.fullscreenElement) document.exitFullscreen();
+        else document.documentElement.requestFullscreen();
+      }
+    });
+
+    showSlide(0);
+  </script>
+  <!-- Training Overlay System -->
+  <link rel="stylesheet" href="/training/training-styles.css">
+  <script src="/training/training-overlay.js"></script>
+  <script src="/training/training-content.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      TrainingOverlay.init({
+        pageId: 'demo',
+        steps: TrainingContent.demo,
+        autoShow: false
+      });
+    });
+  </script>
+</body>
+</html>
