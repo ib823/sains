@@ -15,6 +15,20 @@
       "db": { "kind": "sqlite", "credentials": { "database": "db/sains-poc.sqlite" } },
       "uaa": { "kind": "dummy" }
     },
+    "[postgres]": {
+      "db": {
+        "kind": "postgres",
+        "credentials": { "url": "postgresql://localhost:5432/sains_ar_hub" }
+      },
+      "uaa": { "kind": "dummy" }
+    },
+    "[postgres-cloud]": {
+      "db": {
+        "kind": "postgres",
+        "credentials": { "url": "", "ssl": true }
+      },
+      "uaa": { "kind": "dummy" }
+    },
     "[production]": {
       "db": { "kind": "hana-cloud" },
       "uaa": { "kind": "xsuaa" },
