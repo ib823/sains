@@ -38,6 +38,7 @@ modules:
       - name: sains-ar-hub-connectivity
       - name: sains-ar-hub-alert-notification
       - name: sains-ar-hub-autoscaler
+      - name: sains-ar-hub-credstore
 
   - name: sains-ar-hub-db-deployer
     type: hdb
@@ -103,6 +104,12 @@ resources:
     parameters:
       service: connectivity
       service-plan: lite
+
+  - name: sains-ar-hub-credstore
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: credstore
+      service-plan: standard
 
   - name: sains-ar-hub-html5-repo-host
     type: org.cloudfoundry.managed-service

@@ -1,7 +1,7 @@
 using sains.ar.collections as col from '../db/schema-phase2-collections';
 using sains.ar as ar from '../db/schema';
 
-@requires: 'authenticated-user'
+@requires: ['authenticated-user','CollectionsOfficer','CollectionsSupervisor']
 service IntelligentCollectionsService @(path:'/collections') {
 
   @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','BILSupervisor'])

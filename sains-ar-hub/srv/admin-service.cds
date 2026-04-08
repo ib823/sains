@@ -1,6 +1,6 @@
 using sains.ar as ar from '../db/schema';
 
-@requires: ['FinanceManager','CFO','ICTManager']
+@requires: ['FinanceManager','CFO','ICTManager','SystemAdmin']
 service AdminService @(path:'/admin') {
 
   @(requires:['FinanceManager','ICTManager'])

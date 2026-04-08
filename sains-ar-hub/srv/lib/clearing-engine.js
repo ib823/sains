@@ -159,8 +159,8 @@ async function checkAndTriggerReconnection(db, accountID, paymentReference) {
   try {
     const { logSystemAction } = require('./audit-logger');
     await logSystemAction('RECONNECT', 'CustomerAccount', accountID,
-      { status: 'ACTIVE', dunningLevel: 0, trigger: paymentReference },
-      'CLEARING_ENGINE');
+      { status: 'ACTIVE', dunningLevel: 0, trigger: paymentReference, source: 'CLEARING_ENGINE' },
+      accountID);
   } catch (err) {
     logger.error(`Reconnection audit log failed: ${err.message}`);
   }

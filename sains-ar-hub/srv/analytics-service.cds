@@ -1,7 +1,7 @@
 using sains.ar.analytics as ana from '../db/schema-phase2-analytics';
 using sains.ar as ar from '../db/schema';
 
-@requires: ['FinanceSupervisor','FinanceManager','CFO','Auditor']
+@requires: ['FinanceSupervisor','FinanceManager','CFO','Auditor','ReportViewer']
 service AnalyticsService @(path:'/analytics') {
 
   @readonly

@@ -1,6 +1,6 @@
 using sains.ar as ar from '../db/schema';
 
-@requires: ['FinanceAdmin','FinanceSupervisor','FinanceManager','CFO','Auditor']
+@requires: ['FinanceAdmin','FinanceSupervisor','FinanceManager','CFO','Auditor','ReportViewer']
 service ReportingService @(path:'/reporting') {
 
   function getDSOReport(periodYear: Integer, periodMonth: Integer) returns {

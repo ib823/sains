@@ -28,12 +28,12 @@ service iWRSIntegrationService @(path:'/integration') {
 
   // ── BANK SFTP CONFIG — ICT Manager only ───────────────────────────────────
 
-  @(requires:['ICTManager'])
+  @(requires:['ICTManager','SystemAdmin'])
   entity BankSFTPConfigs as projection on intg.BankSFTPConfig;
 
   // ── iWRS INTEGRATION CONFIG ────────────────────────────────────────────────
 
-  @(requires:['ICTManager'])
+  @(requires:['ICTManager','SystemAdmin'])
   entity iWRSConfigs as projection on intg.iWRSIntegrationConfig;
 
   // ── INBOUND ENDPOINTS (called by iWRS system account) ─────────────────────

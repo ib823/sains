@@ -2,6 +2,7 @@
 
 const cds = require('@sap/cds');
 const dayjs = require('dayjs');
+const Decimal = require('decimal.js');
 const { v4: uuidv4 } = require('uuid');
 const { logAction } = require('../lib/audit-logger');
 const { allocatePayment, reverseAllocation } = require('../lib/clearing-engine');
@@ -407,7 +408,7 @@ module.exports = (srv) => {
           .where({ bankReference: line.bankReference, status: { '!=': 'REVERSED' } })
       );
 
-      if (payment && Math.abs(Number(payment.amount) - Number(line.amount)) < 0.01) {
+      if (payment && new Decimal(payment.amount).minus(line.amount).abs().lte('0.01')) {
         await db.run(UPDATE('sains.ar.BankStatementLine').set({
           status: 'MATCHED', matchedPaymentID: payment.ID,
           matchedAt: new Date().toISOString(), matchedBy: 'SYSTEM', matchConfidence: 'AUTO_HIGH',

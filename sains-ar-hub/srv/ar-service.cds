@@ -91,10 +91,10 @@ service ARService @(path:'/ar') {
   @(requires:['FinanceAdmin','FinanceSupervisor','SystemProcess'])
   entity CollectionImportBatches as projection on ar.CollectionImportBatch
   actions {
-    @(requires:['FinanceAdmin','FinanceSupervisor'])
+    @(requires:['FinanceAdmin','FinanceSupervisor','CounterSupervisor'])
     action confirmBatch() returns Boolean;
 
-    @(requires:['FinanceAdmin','SystemProcess'])
+    @(requires:['FinanceAdmin','SystemProcess','CounterSupervisor'])
     action processBatch() returns {
       processed: Integer;
       failed: Integer;
@@ -109,7 +109,7 @@ service ARService @(path:'/ar') {
     ) returns Boolean;
   }
 
-  @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager'])
+  @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','CounterSupervisor'])
   entity SuspensePayments as projection on ar.SuspensePayment
   actions {
     @(requires:['FinanceAdmin','FinanceSupervisor'])
@@ -192,7 +192,7 @@ service ARService @(path:'/ar') {
   @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','BILStaff','BILSupervisor'])
   entity PaymentPlans as projection on ar.PaymentPlan
   actions {
-    @(requires:['FinanceSupervisor','FinanceManager','BILSupervisor'])
+    @(requires:['FinanceSupervisor','FinanceManager','BILSupervisor','CollectionsSupervisor'])
     action approvePlan() returns Boolean;
 
     @(requires:['FinanceSupervisor','FinanceManager'])
@@ -203,7 +203,7 @@ service ARService @(path:'/ar') {
   entity PaymentPlanInstalments as projection on ar.PaymentPlanInstalment;
 
   // ── PROMISE TO PAY ──────────────────────────────────────────────────────
-  @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','BILStaff','BILSupervisor','CounterStaff'])
+  @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','BILStaff','BILSupervisor','CounterStaff','CollectionsOfficer'])
   entity PromisesToPay as projection on ar.PromiseToPay
   actions {
     @(requires:['FinanceManager'])
@@ -251,7 +251,7 @@ service ARService @(path:'/ar') {
   }
 
   // ── DUNNING ─────────────────────────────────────────────────────────────
-  @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','BILStaff','BILSupervisor','Auditor'])
+  @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','BILStaff','BILSupervisor','Auditor','CollectionsOfficer'])
   entity DunningHistories as projection on ar.DunningHistory;
 
   // ── DIRECT DEBIT ────────────────────────────────────────────────────────

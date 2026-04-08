@@ -74,7 +74,8 @@ async function runECLCalculation(year, month, runType = 'MONTHLY') {
      FROM "SAINS_AR_INVOICE" i
      JOIN "SAINS_AR_CUSTOMERACCOUNT" a ON a.ID = i.account_ID
      WHERE i.status IN ('OPEN','PARTIAL')
-       AND i.invoiceDate <= '${asOfDate}'`
+       AND i.invoiceDate <= ?`,
+    [asOfDate]
   );
 
   // 4. Segment invoices into aging × account type buckets
@@ -143,9 +144,10 @@ async function runECLCalculation(year, month, runType = 'MONTHLY') {
   const priorRuns = await db.run(
     `SELECT * FROM "SAINS_AR_PROVISION_ECLCALCULATIONRUN"
      WHERE status IN ('APPROVED','GL_POSTED')
-       AND ((periodYear = ${priorYear} AND periodMonth = ${priorMonth}))
+       AND periodYear = ? AND periodMonth = ?
      ORDER BY runDate DESC
-     LIMIT 1`
+     LIMIT 1`,
+    [priorYear, priorMonth]
   );
   const priorRun = priorRuns?.[0] || null;
   const priorProvision = priorRun?.totalProvisionRequired || 0;
@@ -307,9 +309,10 @@ async function extractMFRS15Revenue(year, month) {
      FROM "SAINS_AR_INVOICELINEITEM" li
      JOIN "SAINS_AR_INVOICE" i ON i.ID = li.invoice_ID
      JOIN "SAINS_AR_CUSTOMERACCOUNT" a ON a.ID = i.account_ID
-     WHERE i.invoiceDate BETWEEN '${fromDate}' AND '${toDate}'
+     WHERE i.invoiceDate BETWEEN ? AND ?
        AND i.status NOT IN ('REVERSED','CANCELLED')
-     GROUP BY li.chargeType_code, a.accountType_code`
+     GROUP BY li.chargeType_code, a.accountType_code`,
+    [fromDate, toDate]
   );
 
   let recordCount = 0;
@@ -435,15 +438,15 @@ async function extractSustainabilityData(year, month) {
             WHERE balanceOutstanding > 0 AND accountStatus = 'ACTIVE'`),
     db.run(`SELECT COUNT(*) AS c, SUM(monthlyPaymentAmount) AS amt
             FROM "SAINS_AR_COLLECTIONS_HARDSHIPASSESSMENT"
-            WHERE outcome = 'APPROVED' AND schemeEndDate >= '${fromDate}'`),
+            WHERE outcome = 'APPROVED' AND schemeEndDate >= ?`, [fromDate]),
     db.run(`SELECT COUNT(*) AS c FROM "SAINS_AR_COLLECTIONS_VULNERABILITYRECORD"
             WHERE isActive = TRUE`),
     db.run(`SELECT
               SUM(CASE WHEN channel IN ('FPX','DUITNOW_QR','JOMPAY','EMANDATE') THEN 1 ELSE 0 END) AS digi,
               COUNT(*) AS total
             FROM "SAINS_AR_PAYMENT"
-            WHERE paymentDate BETWEEN '${fromDate}' AND '${toDate}'
-              AND status NOT IN ('REVERSED','BOUNCED')`),
+            WHERE paymentDate BETWEEN ? AND ?
+              AND status NOT IN ('REVERSED','BOUNCED')`, [fromDate, toDate]),
   ]);
 
   const totalCustomers = Number(customers?.[0]?.c || 0);
