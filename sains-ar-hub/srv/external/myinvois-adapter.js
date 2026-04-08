@@ -3,9 +3,15 @@
 const cds = require('@sap/cds');
 const axios = require('axios');
 const crypto = require('crypto');
+const forge = require('node-forge');
 const { logSystemAction } = require('../lib/audit-logger');
 
 const logger = cds.log('myinvois-adapter');
+
+// Module-scope cache for the signing key/certificate.
+// Dev: a self-signed cert is generated lazily on first call and reused.
+// Prod: certificate loaded from BTP Credential Store via CERT_KEYSTORE_REF.
+let _signingMaterial = null;
 
 const MYINVOIS_CONFIG = {
   BASE_URL: process.env.MYINVOIS_BASE_URL
@@ -264,22 +270,174 @@ function buildInvoiceDocument(invoice, account, lineItems, documentUUID) {
  * @returns {Object} Signed document
  */
 async function signDocument(document) {
-  // TBC: Implement digital signature using node-forge or pkijs library
-  // Steps:
-  // 1. Load SAINS private key and certificate from BTP Credential Store
-  // 2. Canonicalize the document (remove whitespace, sort keys)
-  // 3. Compute SHA256 hash of canonical document
-  // 4. Sign hash with RSA private key (SHA256withRSA)
-  // 5. Add UBL digital signature block to document
-  //
-  // Reference: LHDN SDK Section 5 — Digital Signature Implementation
+  try {
+    const material = await _getSigningMaterial();
 
-  logger.warn('Digital signature: TBC — implement with SAINS certificate after CA registration');
+    // 1. Build the canonical representation of the document for hashing.
+    //    SANDBOX NOTE: LHDN production requires XML C14N exclusive canonicalization.
+    //    For sandbox/POC we use deterministic JSON (sorted keys, no UBLExtensions).
+    //    Production refinement: serialize to UBL XML and apply XML-DSIG C14N.
+    const documentForHashing = { ...document };
+    delete documentForHashing.UBLExtensions;
+    delete documentForHashing._signatureStatus;
+    const canonicalDocument = _canonicalJSON(documentForHashing);
+
+    // 2. SHA-256 digest of the canonical document → DigestValue (base64).
+    const digest = crypto.createHash('sha256').update(canonicalDocument, 'utf8').digest('base64');
+
+    // 3. Build SignedInfo and serialize it for signing.
+    const signedInfo = {
+      SignatureMethod: { Algorithm: 'http://www.w3.org/2001/04/xmldsig-more#rsa-sha256' },
+      Reference: [{
+        URI: '',
+        DigestMethod: { Algorithm: 'http://www.w3.org/2001/04/xmlenc#sha256' },
+        DigestValue: digest,
+      }],
+    };
+    const canonicalSignedInfo = _canonicalJSON(signedInfo);
+
+    // 4. RSA-SHA256 signature over the serialized SignedInfo → SignatureValue (base64).
+    const signer = crypto.createSign('RSA-SHA256');
+    signer.update(canonicalSignedInfo, 'utf8');
+    const signatureValue = signer.sign(material.privateKeyPem, 'base64');
+
+    // 5. Build the UBL Signature block with embedded X.509 KeyInfo.
+    const signatureBlock = {
+      UBLExtensions: [{
+        UBLExtension: [{
+          ExtensionURI: 'urn:oasis:names:specification:ubl:dsig:enveloped:xades',
+          ExtensionContent: {
+            UBLDocumentSignatures: {
+              SignatureInformation: {
+                ID: 'urn:oasis:names:specification:ubl:signature:1',
+                ReferencedSignatureID: 'urn:oasis:names:specification:ubl:signature:Invoice',
+                Signature: {
+                  Id: 'signature',
+                  SignedInfo: signedInfo,
+                  SignatureValue: signatureValue,
+                  KeyInfo: {
+                    X509Data: {
+                      X509Certificate: material.certBase64,
+                      X509SubjectName: material.subjectDN,
+                      X509IssuerSerial: {
+                        X509IssuerName: material.issuerDN,
+                        X509SerialNumber: material.serialNumber,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        }],
+      }],
+    };
+
+    return {
+      ...document,
+      ...signatureBlock,
+      _signatureStatus: material.isSelfSigned ? 'SIGNED_SELF_SIGNED_DEV' : 'SIGNED',
+    };
+  } catch (err) {
+    logger.error(`signDocument failed: ${err.message}`);
+    throw err;
+  }
+}
+
+/**
+ * Resolve the signing certificate + private key.
+ * Production: load from BTP Credential Store via CERT_KEYSTORE_REF.
+ * Dev: generate a self-signed RSA-2048 cert lazily and cache it.
+ */
+async function _getSigningMaterial() {
+  if (_signingMaterial) return _signingMaterial;
+
+  const keyRef = MYINVOIS_CONFIG.CERT_KEYSTORE_REF;
+  const credstoreConfigured = keyRef && !keyRef.startsWith('/*') && _hasCredstoreBinding();
+
+  if (credstoreConfigured) {
+    // PRODUCTION PATH — load PEM cert + private key from BTP Credential Store.
+    // The credential is expected to contain { certificate: <PEM>, privateKey: <PEM> }.
+    const cred = await _fetchCredstoreEntry(keyRef);
+    _signingMaterial = _materialFromPem(cred.certificate, cred.privateKey, false);
+    logger.info('e-invoice signing: loaded production certificate from BTP Credential Store');
+    return _signingMaterial;
+  }
+
+  // SANDBOX/DEV PATH — generate a self-signed certificate on first use.
+  logger.warn('Using self-signed certificate for e-invoice signing — NOT valid for LHDN production submission');
+  const keys = forge.pki.rsa.generateKeyPair(2048);
+  const cert = forge.pki.createCertificate();
+  cert.publicKey = keys.publicKey;
+  cert.serialNumber = String(Date.now());
+  cert.validity.notBefore = new Date();
+  cert.validity.notAfter = new Date();
+  cert.validity.notAfter.setFullYear(cert.validity.notBefore.getFullYear() + 1);
+
+  const attrs = [
+    { name: 'commonName', value: 'SAINS AR Hub Dev' },
+    { name: 'organizationName', value: MYINVOIS_CONFIG.SAINS_LEGAL_NAME },
+    { name: 'countryName', value: 'MY' },
+  ];
+  cert.setSubject(attrs);
+  cert.setIssuer(attrs); // self-signed
+  cert.sign(keys.privateKey, forge.md.sha256.create());
+
+  const certPem = forge.pki.certificateToPem(cert);
+  const privateKeyPem = forge.pki.privateKeyToPem(keys.privateKey);
+  _signingMaterial = _materialFromPem(certPem, privateKeyPem, true);
+  return _signingMaterial;
+}
+
+function _materialFromPem(certPem, privateKeyPem, isSelfSigned) {
+  const cert = forge.pki.certificateFromPem(certPem);
+  const certDer = forge.asn1.toDer(forge.pki.certificateToAsn1(cert)).getBytes();
+  const certBase64 = forge.util.encode64(certDer);
+  const subjectDN = cert.subject.attributes.map(a => `${a.shortName || a.name}=${a.value}`).join(',');
+  const issuerDN = cert.issuer.attributes.map(a => `${a.shortName || a.name}=${a.value}`).join(',');
   return {
-    ...document,
-    _signatureStatus: 'TBC_PENDING_CERTIFICATE',
-    // TBC: Add UBLExtensions > UBLExtension > ExtensionContent > Signature block
+    privateKeyPem,
+    certBase64,
+    subjectDN,
+    issuerDN,
+    serialNumber: cert.serialNumber,
+    isSelfSigned,
   };
+}
+
+function _hasCredstoreBinding() {
+  try {
+    const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}');
+    return Array.isArray(vcap.credstore) && vcap.credstore.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function _fetchCredstoreEntry(keyName) {
+  // Production-only path. Real implementation reads VCAP_SERVICES.credstore[0].credentials
+  // and calls the SAP Credential Store REST API. Implemented inline here so the function
+  // signature stays callable; full retry/cache layering can be added in Phase 2.
+  const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}');
+  const binding = vcap.credstore[0].credentials;
+  const tokenResp = await axios.post(`${binding.url}/oauth/token`, 'grant_type=client_credentials', {
+    auth: { username: binding.username, password: binding.password },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  const resp = await axios.get(
+    `${binding.url}/api/v1/credentials/sains-ar-hub/${keyName}`,
+    { headers: { Authorization: `Bearer ${tokenResp.data.access_token}` } }
+  );
+  return resp.data; // expected shape: { certificate, privateKey }
+}
+
+function _canonicalJSON(obj) {
+  // Deterministic JSON: keys sorted recursively, no whitespace.
+  // Sandbox-acceptable substitute for XML C14N.
+  if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
+  if (Array.isArray(obj)) return '[' + obj.map(_canonicalJSON).join(',') + ']';
+  const keys = Object.keys(obj).sort();
+  return '{' + keys.map(k => JSON.stringify(k) + ':' + _canonicalJSON(obj[k])).join(',') + '}';
 }
 
 /**

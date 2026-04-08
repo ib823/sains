@@ -1,9 +1,17 @@
 'use strict';
 
 const cds = require('@sap/cds');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const axios = require('axios');
 const mt940 = require('mt940-js');
 
 const logger = cds.log('bank-statement-adapter');
+
+// Module-scope cache so we don't re-read keys / re-call Credential Store
+// for every SFTP connection within the same process lifecycle.
+const _sshKeyCache = new Map();
 
 async function importBankStatement(fileBuffer, format, bankCode, uploadedBy) {
   const db = await cds.connect.to('db');
@@ -326,20 +334,84 @@ async function downloadBankStatements(targetDate) {
 }
 
 /**
- * Load bank SSH private key from environment or credential store.
+ * Load bank SSH private key with two-tier resolution:
+ *   1. BTP Credential Store (if VCAP_SERVICES.credstore is bound) — production
+ *   2. BANK_SSH_KEY_<BANKCODE> environment variable — dev / staging
+ *   3. ~/.ssh/sains_bank_<bankcode> file — local dev convenience
+ *
+ * The key value itself is never logged — only the source.
+ * Loaded keys are cached per bankCode for the process lifetime.
  */
 async function _loadBankSSHKey(keyRef, bankCode) {
-  if (!keyRef || keyRef.startsWith('/*')) {
-    throw new Error(
-      `Bank SSH key not configured for ${bankCode}. ` +
-      `Set sftpKeyRef in BankSFTPConfig to the Vault/Credential Store key name. ` +
-      `TBC: load key from ${process.env.VAULT_ADDR || 'BTP Credential Store'}.`
-    );
-  }
-  const envKey = process.env[`BANK_SSH_KEY_${bankCode.toUpperCase()}`];
-  if (envKey) return Buffer.from(envKey, 'base64');
+  const code = String(bankCode || '').toUpperCase();
+  if (!code) throw new Error('_loadBankSSHKey: bankCode is required');
 
-  throw new Error(`Bank SSH key not found for ${bankCode}. Set BANK_SSH_KEY_${bankCode.toUpperCase()} env var or configure Vault.`);
+  if (_sshKeyCache.has(code)) {
+    return _sshKeyCache.get(code);
+  }
+
+  // Tier 1 — BTP Credential Store
+  if (keyRef && !keyRef.startsWith('/*') && _hasCredstoreBinding()) {
+    try {
+      const cred = await _fetchCredstoreKey(keyRef);
+      const key = cred.value || cred.privateKey || cred;
+      _sshKeyCache.set(code, key);
+      logger.info(`SSH key for bank ${code}: loaded from BTP Credential Store (key ref ${keyRef})`);
+      return key;
+    } catch (err) {
+      logger.error(`Credential Store fetch failed for bank ${code} (key ${keyRef}): ${err.message}`);
+      // Fall through to env / file fallbacks
+    }
+  }
+
+  // Tier 2 — environment variable
+  const envKey = process.env[`BANK_SSH_KEY_${code}`];
+  if (envKey) {
+    // Accept either raw PEM or base64-wrapped PEM
+    const decoded = envKey.includes('-----BEGIN')
+      ? envKey
+      : Buffer.from(envKey, 'base64').toString('utf8');
+    _sshKeyCache.set(code, decoded);
+    logger.info(`SSH key for bank ${code}: loaded from BANK_SSH_KEY_${code} env var`);
+    return decoded;
+  }
+
+  // Tier 3 — local dev convenience file
+  const localPath = path.join(os.homedir(), '.ssh', `sains_bank_${code.toLowerCase()}`);
+  if (fs.existsSync(localPath)) {
+    const fileKey = fs.readFileSync(localPath, 'utf8');
+    _sshKeyCache.set(code, fileKey);
+    logger.info(`SSH key for bank ${code}: loaded from local file ${localPath}`);
+    return fileKey;
+  }
+
+  throw new Error(
+    `SSH key for bank ${code} not configured. ` +
+    `Set BANK_SSH_KEY_${code} env var or configure BTP Credential Store.`
+  );
 }
 
-module.exports = { importBankStatement, downloadBankStatements };
+function _hasCredstoreBinding() {
+  try {
+    const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}');
+    return Array.isArray(vcap.credstore) && vcap.credstore.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function _fetchCredstoreKey(keyName) {
+  const vcap = JSON.parse(process.env.VCAP_SERVICES || '{}');
+  const binding = vcap.credstore[0].credentials;
+  const tokenResp = await axios.post(`${binding.url}/oauth/token`, 'grant_type=client_credentials', {
+    auth: { username: binding.username, password: binding.password },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+  const resp = await axios.get(
+    `${binding.url}/api/v1/credentials/sains-ar-hub/${keyName}`,
+    { headers: { Authorization: `Bearer ${tokenResp.data.access_token}` } }
+  );
+  return resp.data;
+}
+
+module.exports = { importBankStatement, downloadBankStatements, _loadBankSSHKey };

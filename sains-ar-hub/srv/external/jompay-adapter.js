@@ -1,6 +1,8 @@
 'use strict';
 
 const cds = require('@sap/cds');
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const { Decimal } = require('decimal.js');
 const { logSystemAction } = require('../lib/audit-logger');
@@ -31,41 +33,121 @@ const JOMPAY_CONFIG = {
  * @returns {{ success, fileName, rawContent }}
  */
 async function downloadReconciliationFile(fileDate) {
-  // TBC: Implement SFTP download using ssh2-sftp-client or BTP SFTP Adapter
-  // The acquiring bank provides the SFTP details after JomPAY biller registration.
-  // File naming convention: SAINS_JOMPAY_YYYYMMDD.csv (TBC: confirm with bank)
+  const date = fileDate instanceof Date ? fileDate : new Date(fileDate);
+  const dateStr = date.toISOString().substring(0, 10).replace(/-/g, '');
 
-  const dateStr = fileDate.toISOString().substring(0, 10).replace(/-/g, '');
-  const fileName = `${JOMPAY_CONFIG.BILLER_CODE}_JOMPAY_${dateStr}.csv`;
+  // Resolve SFTP config: env vars take precedence, then PaymentChannelConfig DB row.
+  const cfg = await _resolveSftpConfig();
+  const remotePath = process.env.JOMPAY_SFTP_REMOTE_PATH || cfg.remotePath || '/inbound';
+  const fileName = `SAINS_JOMPAY_${dateStr}.csv`;
+  const remoteFile = `${remotePath.replace(/\/$/, '')}/${fileName}`;
 
-  logger.info(`JomPAY: downloading reconciliation file ${fileName}`);
-
-  // Stub implementation — replace with actual SFTP client
-  // const sftp = new SFTPClient();
-  // await sftp.connect({ host, port: 22, username, privateKey });
-  // const content = await sftp.get(`${JOMPAY_CONFIG.ACQUIRER_SFTP_PATH}/${fileName}`);
-  // await sftp.end();
-
-  // Check if SFTP is configured
-  if (!JOMPAY_CONFIG.ACQUIRER_SFTP_HOST || JOMPAY_CONFIG.ACQUIRER_SFTP_HOST.startsWith('/*')) {
-    logger.warn(`JomPAY SFTP not configured — returning empty file (POC/dev mode)`);
+  // ── Dev / mock mode ──────────────────────────────────────────────────────
+  if (!cfg.host) {
+    const localSample = path.resolve(process.cwd(), 'test/data', `jompay-sample-${dateStr}.csv`);
+    if (fs.existsSync(localSample)) {
+      logger.info(`JomPAY: SFTP not configured — using local sample ${localSample}`);
+      const content = fs.readFileSync(localSample, 'utf8');
+      const parsed = parseReconciliationFile(content);
+      return { found: true, fileDate: date, fileName, source: 'local-sample', lines: parsed };
+    }
+    logger.warn('JomPAY SFTP not configured and no local sample file found — graceful no-op');
     return {
-      success: false,
-      fileName,
-      rawContent: null,
-      dev: true,
-      reason: 'TBC: JomPAY SFTP not configured — use manual CSV upload or simulator instead',
+      found: false,
+      fileDate: date,
+      reason: 'JomPAY SFTP not configured and no local sample file found',
     };
   }
 
-  // Production: implement SFTP download using ssh2-sftp-client
-  // const sftp = new SFTPClient();
-  // await sftp.connect({ host: JOMPAY_CONFIG.ACQUIRER_SFTP_HOST, port: 22, username: JOMPAY_CONFIG.ACQUIRER_SFTP_USER, privateKey });
-  // const content = await sftp.get(`${JOMPAY_CONFIG.ACQUIRER_SFTP_PATH}/${fileName}`);
-  // await sftp.end();
-  // return { success: true, fileName, rawContent: content.toString(JOMPAY_CONFIG.ENCODING) };
+  // ── Production / staging SFTP path ───────────────────────────────────────
+  const SFTPClient = require('ssh2-sftp-client');
+  const sftp = new SFTPClient();
 
-  throw new Error('JomPAY SFTP download: SFTP credentials configured but ssh2-sftp-client not yet implemented');
+  try {
+    let privateKey;
+    try {
+      privateKey = await _loadJomPaySSHKey();
+    } catch (keyErr) {
+      logger.error(`JomPAY SSH key load failed: ${keyErr.message}`);
+      return { found: false, fileDate: date, reason: `SSH key load failed: ${keyErr.message}` };
+    }
+
+    logger.info(`JomPAY: connecting to SFTP ${cfg.host}:${cfg.port} as ${cfg.username}`);
+    await sftp.connect({
+      host: cfg.host,
+      port: cfg.port,
+      username: cfg.username,
+      privateKey,
+    });
+
+    const exists = await sftp.exists(remoteFile);
+    if (!exists) {
+      logger.warn(`JomPAY: file ${remoteFile} not found on SFTP server for ${dateStr}`);
+      return { found: false, fileDate: date, fileName, reason: 'File not found on SFTP server' };
+    }
+
+    const buffer = await sftp.get(remoteFile);
+    const content = Buffer.isBuffer(buffer) ? buffer.toString('utf8') : String(buffer);
+    logger.info(`JomPAY: downloaded ${fileName} (${content.length} bytes)`);
+
+    const parsed = parseReconciliationFile(content);
+    return { found: true, fileDate: date, fileName, source: 'sftp', lines: parsed };
+  } catch (err) {
+    logger.error(`JomPAY SFTP download failed: ${err.message}`);
+    return { found: false, fileDate: date, reason: `SFTP connection failed: ${err.message}` };
+  } finally {
+    try { await sftp.end(); } catch { /* swallow */ }
+  }
+}
+
+/**
+ * Resolve JomPAY SFTP connection config. Env vars first, then DB-backed
+ * PaymentChannelConfig row (channelCode = 'JOMPAY'), else null host.
+ */
+async function _resolveSftpConfig() {
+  const envHost = process.env.JOMPAY_SFTP_HOST;
+  if (envHost) {
+    return {
+      host: envHost,
+      port: Number(process.env.JOMPAY_SFTP_PORT || 22),
+      username: process.env.JOMPAY_SFTP_USER || '',
+      remotePath: process.env.JOMPAY_SFTP_REMOTE_PATH || '',
+    };
+  }
+  try {
+    const db = await cds.connect.to('db');
+    const row = await db.run(
+      SELECT.one.from('sains.ar.payment.PaymentChannelConfig').where({ channelCode: 'JOMPAY' })
+    );
+    if (row && row.apiEndpoint) {
+      // apiEndpoint expected as host[:port]
+      const [host, port] = String(row.apiEndpoint).split(':');
+      return {
+        host,
+        port: Number(port || 22),
+        username: row.username || '',
+        remotePath: row.remotePath || '',
+      };
+    }
+  } catch (err) {
+    logger.warn(`PaymentChannelConfig lookup failed for JOMPAY: ${err.message}`);
+  }
+  return { host: null, port: 22, username: '', remotePath: '' };
+}
+
+async function _loadJomPaySSHKey() {
+  const envKey = process.env.JOMPAY_SFTP_KEY;
+  if (envKey) {
+    return envKey.includes('-----BEGIN')
+      ? envKey
+      : Buffer.from(envKey, 'base64').toString('utf8');
+  }
+  // Allow reusing the bank-statement adapter's credstore loader for parity.
+  if (process.env.VCAP_SERVICES && process.env.VCAP_SERVICES.includes('credstore')) {
+    const { _loadBankSSHKey } = require('./bank-statement-adapter');
+    return _loadBankSSHKey('JOMPAY_SFTP_KEY', 'JOMPAY');
+  }
+  throw new Error('JOMPAY_SFTP_KEY env var not set and no Credential Store binding available');
 }
 
 /**
