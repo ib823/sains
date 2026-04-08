@@ -1,0 +1,21 @@
+ID,agencyCode,agencyName,fileType,delimiter,hasHeaderRow,encoding,dateFormat,amountFormat,accountRefColumn,amountColumn,paymentDateColumn,paymentRefColumn,payerNameColumn,bankRefColumn,skipRowsTop,skipRowsBottom,totalLinePattern,accountRefType,isActive,notes
+fmt-bp-ag,BP_AG,Bayaran Pukal — Akauntan Negara,CSV,|,false,UTF-8,DD/MM/YYYY,DECIMAL_DOT,0,1,2,3,4,5,0,0,,ACCOUNT_NUMBER,true,TBC confirm AG Bayaran Pukal file format
+fmt-bp-tnb,BP_TNB,Bayaran Pukal — TNB,CSV,|,false,UTF-8,DD/MM/YYYY,DECIMAL_DOT,0,1,2,3,4,5,0,0,,ACCOUNT_NUMBER,true,TBC confirm TNB Bayaran Pukal file format
+fmt-bp-iwk,BP_IWK,Bayaran Pukal — IWK,CSV,|,false,UTF-8,DD/MM/YYYY,DECIMAL_DOT,0,1,2,3,4,5,0,0,,ACCOUNT_NUMBER,true,TBC confirm IWK Bayaran Pukal file format
+fmt-bp-fama,BP_FAMA,Bayaran Pukal — FAMA,CSV,|,false,UTF-8,DD/MM/YYYY,DECIMAL_DOT,0,1,2,3,4,5,0,0,,ACCOUNT_NUMBER,true,TBC confirm FAMA Bayaran Pukal file format
+fmt-cimb,CIMB,CIMB Bank Berhad,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm CIMB collection file format
+fmt-maybank,MAYBANK,Malayan Banking Berhad,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm Maybank collection file format
+fmt-bankrakyat,BANK_RAKYAT,Bank Rakyat,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm Bank Rakyat collection file format
+fmt-bankislam,BANK_ISLAM,Bank Islam,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm Bank Islam collection file format
+fmt-bsn,BSN,Bank Simpanan Nasional,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm BSN collection file format
+fmt-agrobank,AGROBANK,Agrobank,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm Agrobank collection file format
+fmt-ambank,AMBANK,AmBank,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm AmBank collection file format
+fmt-pos,POS,POS Malaysia,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm POS Malaysia collection file format
+fmt-epay,EPAY,e-Pay,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm e-Pay collection file format
+fmt-n9pay,N9PAY,N9Pay,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm N9Pay collection file format
+fmt-isains,ISAINS,iSAINS Portal,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm iSAINS collection file format
+fmt-portalsains,PORTAL_SAINS,Portal SAINS,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm Portal SAINS collection file format
+fmt-paylink,PAYLINK,PayLink,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm PayLink collection file format
+fmt-jompay,JOMPAY,JomPAY,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm JomPAY collection file format
+fmt-mobdigi,MOBDIGI,MobDigi,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm MobDigi collection file format
+fmt-ebbbsn,EBB_BSN,EBB BSN Agen Berdaftar,CSV,|,true,UTF-8,YYYY-MM-DD,DECIMAL_DOT,accountRef,amount,paymentDate,paymentRef,payerName,bankRef,0,0,,ACCOUNT_NUMBER,true,TBC confirm EBB BSN collection file format

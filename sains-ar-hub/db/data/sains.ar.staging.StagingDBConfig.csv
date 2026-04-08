@@ -1,0 +1,2 @@
+ID,dbType,dbHost,dbPort,dbName,dbSchema,dbUserRef,pollIntervalMinutes,lastPollAt,lastSuccessAt,lastPollRecordCount,isActive,failCount
+stg-cfg-default,MSSQL,/* TBC: Staging DB hostname */,1433,/* TBC: Staging DB database name */,/* TBC: Staging DB schema name */,/* TBC: read-only service account credential reference */,15,,,0,false,0

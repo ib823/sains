@@ -1,4 +1,5 @@
 using sains.ar as ar from '../db/schema';
+using sains.ar.agency as agy from '../db/schema-phase3-agency';
 
 @requires: 'authenticated-user'
 service ARService @(path:'/ar') {
@@ -273,4 +274,34 @@ service ARService @(path:'/ar') {
   action triggerPeriodAccrual(year: Integer, month: Integer) returns {
     processed: Integer; accrualTransactions: Integer;
   };
+
+  // ── AGENCY FILE PARSER ──────────────────────────────────────────────────
+  @(requires:['FinanceAdmin','ICTManager','SystemAdmin'])
+  entity AgencyFileFormats as projection on agy.AgencyFileFormat;
+
+  @(requires:['FinanceAdmin','FinanceSupervisor','CounterSupervisor'])
+  entity AgencyFileBatches as projection on agy.AgencyFileBatch
+  actions {
+    @(requires:['FinanceAdmin','FinanceSupervisor','CounterSupervisor'])
+    action uploadAgencyFile(
+      agencyCode: String(20),
+      fileContent: LargeString,
+      fileName: String(255),
+      fileDate: Date
+    ) returns {
+      batchID     : UUID;
+      parsedLines : Integer;
+      failedLines : Integer;
+    };
+
+    @(requires:['FinanceAdmin','FinanceSupervisor'])
+    action resolveAgencyBatch(batchID: UUID) returns {
+      resolved : Integer;
+      suspense : Integer;
+    };
+  }
+
+  @(requires:['FinanceAdmin','FinanceSupervisor'])
+  @readonly
+  entity AgencyFileLines as projection on agy.AgencyFileLine;
 }

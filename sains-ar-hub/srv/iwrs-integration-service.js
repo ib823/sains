@@ -3,6 +3,7 @@
 const cds = require('@sap/cds');
 const iwrs = require('./external/iwrs-adapter');
 const metis = require('./external/metis-adapter');
+const stagingDbAdapter = require('./external/staging-db-adapter');
 
 const logger = cds.log('iwrs-integration-service');
 
@@ -218,6 +219,34 @@ module.exports = cds.service.impl(async function () {
       suspense: Number(stats?.[0]?.suspense || 0),
       avgProcessingMs: Math.round(Number(stats?.[0]?.avgMs || 0) * 100) / 100,
       patternActive: config?.activePattern || 'PATTERN_A',
+    };
+  });
+
+  // ── STAGING DB (Pattern E1) ───────────────────────────────────────────────
+
+  this.on('triggerStagingPoll', async (req) => {
+    const result = await stagingDbAdapter.pollStagingDB(req.data.sinceTimestamp);
+    return {
+      polled: !!result.polled,
+      recordCount: Number(result.recordCount || 0),
+    };
+  });
+
+  this.on('processStagingBatch', async () => {
+    const result = await stagingDbAdapter.processStagingRecords();
+    return {
+      processed: result.processed,
+      resolved: result.resolved,
+      suspense: result.suspense,
+    };
+  });
+
+  this.on('getStagingHealth', async () => {
+    const h = await stagingDbAdapter.getStagingHealthStatus();
+    return {
+      isActive: h.isActive,
+      lastPollAt: h.lastPollAt,
+      failCount: h.failCount,
     };
   });
 });

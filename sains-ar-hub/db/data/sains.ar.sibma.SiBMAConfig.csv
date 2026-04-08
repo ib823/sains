@@ -1,0 +1,2 @@
+ID,apiBaseURL,apiKeyRef,authMethod,pushPaymentConfirmations,pushBalanceUpdates,pushTransactionHistory,retryIntervalMinutes,maxRetries,isActive,lastPushAt,consecutiveFailures
+sibma-cfg-default,/* TBC: SiBMA REST API base URL */,/* TBC: SiBMA API key in BTP Credential Store */,API_KEY,true,true,false,30,5,false,,0

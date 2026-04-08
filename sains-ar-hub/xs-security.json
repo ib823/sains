@@ -36,7 +36,8 @@
     { "name": "$XSAPPNAME.MetisServiceAccount", "description": "Metis system account scope" },
     { "name": "$XSAPPNAME.Customer", "description": "Authenticated customer — iSAINS portal and mobile app" },
     { "name": "$XSAPPNAME.iSAINSServiceAccount", "description": "iSAINS portal service account for system-to-system calls" },
-    { "name": "$XSAPPNAME.BayaranPukalServiceAccount", "description": "Bayaran Pukal system service account" }
+    { "name": "$XSAPPNAME.BayaranPukalServiceAccount", "description": "Bayaran Pukal system service account" },
+    { "name": "$XSAPPNAME.SiBMAServiceAccount", "description": "SiBMA Water Billing System service account — pull API" }
   ],
   "role-templates": [
     { "name": "FinanceAdmin",     "scope-references": ["$XSAPPNAME.FinanceAdmin"] },
@@ -58,6 +59,7 @@
     { "name": "MetisServiceAccount", "scope-references": ["$XSAPPNAME.MetisServiceAccount"] },
     { "name": "Customer", "scope-references": ["$XSAPPNAME.Customer"] },
     { "name": "iSAINSServiceAccount", "scope-references": ["$XSAPPNAME.iSAINSServiceAccount","$XSAPPNAME.Customer"] },
-    { "name": "BayaranPukalServiceAccount", "scope-references": ["$XSAPPNAME.BayaranPukalServiceAccount"] }
+    { "name": "BayaranPukalServiceAccount", "scope-references": ["$XSAPPNAME.BayaranPukalServiceAccount"] },
+    { "name": "SiBMAServiceAccount", "scope-references": ["$XSAPPNAME.SiBMAServiceAccount"] }
   ]
 }

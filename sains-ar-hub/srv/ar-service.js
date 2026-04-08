@@ -214,6 +214,28 @@ module.exports = cds.service.impl(async function() {
     return await runPeriodAccrualJob(year, month);
   });
 
+  // ── AGENCY FILE PARSER ───────────────────────────────────────────────
+  const agencyFileParser = require('./external/agency-file-parser');
+
+  srv.on('uploadAgencyFile', 'AgencyFileBatches', async (req) => {
+    const { agencyCode, fileContent, fileName } = req.data;
+    try {
+      const result = await agencyFileParser.parseAgencyFile(agencyCode, fileContent, fileName);
+      return {
+        batchID: result.batchID,
+        parsedLines: result.parsedLines,
+        failedLines: result.failedLines,
+      };
+    } catch (err) {
+      return req.error(400, err.message);
+    }
+  });
+
+  srv.on('resolveAgencyBatch', 'AgencyFileBatches', async (req) => {
+    const { batchID } = req.data;
+    return await agencyFileParser.resolveAgencyBatch(batchID);
+  });
+
   // ── JOB REGISTRATION ON SERVER START ──────────────────────────────────
   cds.on('served', async () => {
     await _registerScheduledJobs();

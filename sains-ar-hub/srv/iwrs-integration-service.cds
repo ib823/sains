@@ -1,4 +1,5 @@
 using sains.ar.integration as intg from '../db/schema-phase3-integration';
+using sains.ar.staging as stg from '../db/schema-phase3-staging';
 using sains.ar as ar from '../db/schema';
 
 // This service has two audiences:
@@ -118,5 +119,34 @@ service iWRSIntegrationService @(path:'/integration') {
     suspense          : Integer;
     avgProcessingMs   : Decimal(8,2);
     patternActive     : String(10);
+  };
+
+  // ── STAGING DB (Pattern E1) ────────────────────────────────────────────────
+
+  @(requires:['ICTManager','SystemAdmin'])
+  entity StagingDBConfigs as projection on stg.StagingDBConfig;
+
+  @(requires:['FinanceAdmin','FinanceSupervisor','ICTManager','SystemAdmin'])
+  @readonly
+  entity StagingPaymentRecords as projection on stg.StagingPaymentRecord;
+
+  @(requires:['SystemProcess'])
+  action triggerStagingPoll(sinceTimestamp: DateTime) returns {
+    polled      : Boolean;
+    recordCount : Integer;
+  };
+
+  @(requires:['SystemProcess'])
+  action processStagingBatch() returns {
+    processed : Integer;
+    resolved  : Integer;
+    suspense  : Integer;
+  };
+
+  @(requires:['ICTManager','SystemAdmin'])
+  function getStagingHealth() returns {
+    isActive   : Boolean;
+    lastPollAt : DateTime;
+    failCount  : Integer;
   };
 }
