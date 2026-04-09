@@ -14,9 +14,14 @@ if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres
   const dbCfg = cds.env.requires.db;
   if (dbCfg) {
     const u = new URL(process.env.DATABASE_URL);
+    // Supabase: use session pooler (port 5432) instead of transaction pooler (6543)
+    // because @cap-js/postgres uses named prepared statements that PgBouncer
+    // in transaction mode rejects with "prepared statement already exists".
+    const port = u.hostname.includes('pooler.supabase.com') && u.port === '6543'
+      ? 5432 : parseInt(u.port || '5432', 10);
     dbCfg.credentials = {
       host: u.hostname,
-      port: parseInt(u.port || '5432', 10),
+      port,
       user: decodeURIComponent(u.username),
       password: decodeURIComponent(u.password),
       database: u.pathname.replace(/^\//, '') || 'postgres',
