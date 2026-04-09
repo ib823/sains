@@ -12,11 +12,17 @@ const path = require('path');
 // If DATABASE_URL is set and we're in a postgres profile, override cds.env at
 // runtime so the @cap-js/postgres adapter connects to the real database.
 if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
+  // Ensure ?pgbouncer=true is present for Supabase transaction pooler compatibility.
+  // Without it, PgBouncer rejects named prepared statements that @cap-js/postgres sends.
+  let dbUrl = process.env.DATABASE_URL;
+  if (dbUrl.includes('pooler.supabase.com') && !dbUrl.includes('pgbouncer=true')) {
+    dbUrl += (dbUrl.includes('?') ? '&' : '?') + 'pgbouncer=true';
+  }
   cds.env.requires.db = {
     kind: 'postgres',
     impl: '@cap-js/postgres',
     credentials: {
-      url: process.env.DATABASE_URL,
+      url: dbUrl,
       ssl: { rejectUnauthorized: false },
     },
     pool: {
