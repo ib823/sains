@@ -9,30 +9,24 @@ const path = require('path');
 
 // ── DATABASE_URL OVERRIDE ─────────────────────────────────────────────────
 // CAP does NOT substitute ${VAR} placeholders in .cdsrc.json credential strings.
-// If DATABASE_URL is set and we're in a postgres profile, override cds.env at
-// runtime so the @cap-js/postgres adapter connects to the real database.
+// cds.env.requires.db is populated AFTER server.js module-scope runs, so direct
+// assignment gets overwritten. Instead we hook into 'connect' to patch credentials
+// right before the @cap-js/postgres adapter opens the pool.
 if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
-  // Ensure ?pgbouncer=true is present for Supabase transaction pooler compatibility.
-  // Without it, PgBouncer rejects named prepared statements that @cap-js/postgres sends.
-  let dbUrl = process.env.DATABASE_URL;
-  if (dbUrl.includes('pooler.supabase.com') && !dbUrl.includes('pgbouncer=true')) {
-    dbUrl += (dbUrl.includes('?') ? '&' : '?') + 'pgbouncer=true';
-  }
-  cds.env.requires.db = {
-    kind: 'postgres',
-    impl: '@cap-js/postgres',
-    credentials: {
-      url: dbUrl,
-      ssl: { rejectUnauthorized: false },
-    },
-    pool: {
-      min: 1,
-      max: 5,
-      acquireTimeoutMillis: 60000,
-      idleTimeoutMillis: 30000,
-      evictionRunIntervalMillis: 10000,
-    },
-  };
+  cds.on('connect', (srv) => {
+    if (srv.name === 'db' || srv.kind === 'postgres') {
+      srv.options ??= {};
+      srv.options.credentials ??= {};
+      srv.options.credentials.url = process.env.DATABASE_URL;
+      srv.options.credentials.ssl = { rejectUnauthorized: false };
+      srv.options.pool = {
+        min: 1, max: 5,
+        acquireTimeoutMillis: 60000,
+        idleTimeoutMillis: 30000,
+        evictionRunIntervalMillis: 10000,
+      };
+    }
+  });
 }
 
 cds.on('bootstrap', (app) => {
