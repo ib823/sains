@@ -202,8 +202,8 @@ async function _createAccountFromiWRS(db, payload) {
   // Encrypt IC number if provided
   let encryptedIC = null;
   if (payload.id_no || payload.idNumber) {
-    const { encryptField } = require('../lib/crypto-helper');
-    encryptedIC = await encryptField(payload.id_no || payload.idNumber);
+    const { encryptICNumber } = require('../lib/crypto-helper');
+    encryptedIC = await encryptICNumber(payload.id_no || payload.idNumber);
   }
 
   await db.run(INSERT.into('sains.ar.CustomerAccount').entries({

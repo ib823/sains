@@ -48,6 +48,37 @@ module.exports = cds.service.impl(async function() {
     }
   });
 
+  // ── DOWNLOAD BATCH CSV ─────────────────────────────────────────────────
+  const { SAP_CORE } = require('./lib/constants');
+  srv.on('downloadBatchCSV', 'GLPostingBatches', async (req) => {
+    const ID = req.params[0]?.ID ?? req.params[0];
+    const db = await cds.connect.to('db');
+    const batch = await db.run(SELECT.one.from('sains.ar.GLPostingBatch').where({ ID }));
+    if (!batch) return req.error(404, 'GL batch not found');
+
+    const lines = await db.run(
+      SELECT.from('sains.ar.GLPostingLine').where({ batch_ID: ID }).orderBy({ lineSequence: 'asc' })
+    );
+
+    const docDate = (batch.batchDate || '').replace(/-/g, '');
+    const companyCode = SAP_CORE.COMPANY_CODE;
+    const docType = SAP_CORE.DOCUMENT_TYPE_AR || 'SA';
+    const reference = (batch.idempotencyKey || ID).substring(0, 16);
+
+    const csvHeaders = 'BUKRS,BLDAT,BUDAT,BLART,XBLNR,BKTXT,HKONT,SHKZG,WRBTR,KOSTL,SGTXT';
+    const csvRows = lines.map(line => {
+      const dc = Number(line.amount) >= 0 ? 'S' : 'H';
+      const amt = Math.abs(Number(line.amount)).toFixed(2);
+      const headerText = (batch.postingType || '').substring(0, 25).replace(/"/g, '""');
+      const itemText = (line.text || '').substring(0, 50).replace(/"/g, '""');
+      return `${companyCode},${docDate},${docDate},${docType},${reference},"${headerText}",${line.glAccount},${dc},${amt},${line.costCentre || ''},"${itemText}"`;
+    });
+
+    const csvContent = [csvHeaders, ...csvRows].join('\n');
+    const fileName = `GL_BATCH_${reference}_${batch.batchDate}.csv`;
+    return { csvContent, fileName, lineCount: lines.length };
+  });
+
   // ── PROVISION MATRIX ──────────────────────────────────────────────────
   srv.on('getProvisionMatrix', async (req) => {
     const matrix = [];
