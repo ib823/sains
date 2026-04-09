@@ -18,14 +18,26 @@
     "[postgres]": {
       "db": {
         "kind": "postgres",
-        "credentials": { "url": "postgresql://localhost:5432/sains_ar_hub" }
+        "impl": "@cap-js/postgres",
+        "credentials": {
+          "url": "${DATABASE_URL:-postgresql://localhost:5432/sains_ar_hub}"
+        }
       },
       "uaa": { "kind": "dummy" }
     },
     "[postgres-cloud]": {
       "db": {
         "kind": "postgres",
-        "credentials": { "url": "", "ssl": true }
+        "impl": "@cap-js/postgres",
+        "credentials": {
+          "url": "${DATABASE_URL}",
+          "ssl": { "rejectUnauthorized": false }
+        },
+        "pool": {
+          "min": 2,
+          "max": 10,
+          "acquireTimeoutMillis": 30000
+        }
       },
       "uaa": { "kind": "dummy" }
     },

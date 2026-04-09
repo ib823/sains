@@ -1,5 +1,9 @@
 'use strict';
 
+// Force IPv4 DNS resolution for outbound connections (Codespace/Docker fix).
+// Must run before any other require that might trigger DNS lookups.
+require('dns').setDefaultResultOrder('ipv4first');
+
 const cds = require('@sap/cds');
 const path = require('path');
 

@@ -1,0 +1,99 @@
+{
+  "build": {
+    "target": "gen",
+    "tasks": [
+      {
+        "for": "hana",
+        "src": "db",
+        "options": {
+          "model": [
+            "db",
+            "srv",
+            "app"
+          ]
+        }
+      },
+      {
+        "for": "node-cf",
+        "src": "srv",
+        "options": {
+          "model": [
+            "db",
+            "srv",
+            "app"
+          ]
+        }
+      }
+    ]
+  },
+  "requires": {
+    "[development]": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "database": ":memory:"
+        }
+      },
+      "uaa": {
+        "kind": "dummy"
+      }
+    },
+    "[poc]": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "database": "db/sains-poc.sqlite"
+        }
+      },
+      "uaa": {
+        "kind": "dummy"
+      }
+    },
+    "[postgres]": {
+      "db": {
+        "kind": "postgres",
+        "credentials": {
+          "url": "postgresql://localhost:5432/sains_ar_hub"
+        }
+      },
+      "uaa": {
+        "kind": "dummy"
+      }
+    },
+    "[postgres-cloud]": {
+      "db": {
+        "kind": "postgres",
+        "credentials": {
+          "url": "postgresql://postgres.bndvptenaanjncqfqcrr:og3Anogq9sJF329S@aws-1-ap-southeast-1.pooler.supabase.com:6543/postgres",
+          "ssl": {
+            "rejectUnauthorized": false
+          }
+        }
+      },
+      "uaa": {
+        "kind": "dummy"
+      }
+    },
+    "[production]": {
+      "db": {
+        "kind": "hana-cloud"
+      },
+      "uaa": {
+        "kind": "xsuaa"
+      },
+      "audit-log": {
+        "kind": "audit-log-service"
+      }
+    }
+  },
+  "i18n": {
+    "default_language": "en",
+    "languages": [
+      "en",
+      "ms"
+    ]
+  },
+  "sql": {
+    "native_hana_associations": true
+  }
+}

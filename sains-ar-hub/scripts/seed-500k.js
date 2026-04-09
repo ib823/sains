@@ -21,12 +21,30 @@
  *   SEED_PROGRESS=true        Show progress lines
  */
 
+require('./lib/ipv4-fix');
+
 const path = require('path');
 const fs = require('fs');
 const readline = require('readline');
 
 process.chdir(path.resolve(__dirname, '..'));
 const cds = require('@sap/cds');
+
+// ── DATABASE_URL OVERRIDE ─────────────────────────────────────────────────
+// CAP does not natively substitute ${VAR} placeholders in .cdsrc.json strings.
+// If DATABASE_URL is set, override cds.env.requires.db at runtime so the
+// configured profile (postgres / postgres-cloud) actually connects there.
+if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
+  cds.env.requires.db = {
+    kind: 'postgres',
+    impl: '@cap-js/postgres',
+    credentials: {
+      url: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    },
+    pool: { min: 2, max: 10, acquireTimeoutMillis: 30000 },
+  };
+}
 
 const { createRNG } = require('./lib/seeded-rng');
 const { generateName } = require('./lib/name-generator');

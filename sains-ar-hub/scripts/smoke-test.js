@@ -7,6 +7,7 @@
  * Default: http://localhost:4004
  */
 
+require('./lib/ipv4-fix');
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');

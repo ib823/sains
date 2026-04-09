@@ -22,8 +22,9 @@
     "start:poc": "CDS_ENV=poc npx cds deploy && CDS_ENV=poc cds-serve",
     "start:pg": "CDS_ENV=postgres cds-serve",
     "start:pg:cloud": "CDS_ENV=postgres-cloud cds-serve",
-    "deploy:pg": "CDS_ENV=postgres npx cds deploy",
-    "deploy:pg:cloud": "CDS_ENV=postgres-cloud npx cds deploy",
+    "deploy:pg": "CDS_ENV=postgres node scripts/deploy-pg.js",
+    "deploy:pg:cloud": "CDS_ENV=postgres-cloud node scripts/deploy-pg.js",
+    "test:pg": "node scripts/test-pg-connection.js",
     "seed:500k": "node scripts/seed-500k.js",
     "seed:500k:pg": "CDS_ENV=postgres node scripts/seed-500k.js",
     "seed:500k:pg:cloud": "CDS_ENV=postgres-cloud node scripts/seed-500k.js",
@@ -299,8 +300,9 @@
       "[postgres]": {
         "db": {
           "kind": "postgres",
+          "impl": "@cap-js/postgres",
           "credentials": {
-            "url": "postgresql://localhost:5432/sains_ar_hub"
+            "url": "${DATABASE_URL:-postgresql://localhost:5432/sains_ar_hub}"
           }
         },
         "auth": {
@@ -334,9 +336,15 @@
       "[postgres-cloud]": {
         "db": {
           "kind": "postgres",
+          "impl": "@cap-js/postgres",
           "credentials": {
-            "url": "",
-            "ssl": true
+            "url": "${DATABASE_URL}",
+            "ssl": { "rejectUnauthorized": false }
+          },
+          "pool": {
+            "min": 2,
+            "max": 10,
+            "acquireTimeoutMillis": 30000
           }
         },
         "auth": {
