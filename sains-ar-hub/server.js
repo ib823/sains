@@ -7,26 +7,26 @@ require('dns').setDefaultResultOrder('ipv4first');
 const cds = require('@sap/cds');
 const path = require('path');
 
-cds.on('bootstrap', (app) => {
-  // ── DATABASE_URL OVERRIDE ───────────────────────────────────────────────
-  // CAP does NOT substitute ${VAR} in .cdsrc.json strings. By the time the
-  // bootstrap event fires, cds.env IS finalised. Patch credentials in-place
-  // so @cap-js/postgres opens the pool with the real Supabase URL.
-  if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
-    const dbCfg = cds.env.requires.db;
-    if (dbCfg) {
-      dbCfg.credentials = {
-        url: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false },
-      };
-      dbCfg.pool = {
-        min: 1, max: 5,
-        acquireTimeoutMillis: 60000,
-        idleTimeoutMillis: 30000,
-        evictionRunIntervalMillis: 10000,
-      };
-    }
+// ── DATABASE_URL OVERRIDE ─────────────────────────────────────────────────
+// CAP does NOT substitute ${VAR} in .cdsrc.json credential strings.
+// Mutate the already-loaded cds.env.requires.db.credentials object in-place
+// at module scope (immediately after cds is required, before any service starts).
+if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
+  const dbCfg = cds.env.requires.db;
+  if (dbCfg) {
+    dbCfg.credentials = dbCfg.credentials || {};
+    dbCfg.credentials.url = process.env.DATABASE_URL;
+    dbCfg.credentials.ssl = { rejectUnauthorized: false };
+    dbCfg.pool = {
+      min: 1, max: 5,
+      acquireTimeoutMillis: 60000,
+      idleTimeoutMillis: 30000,
+      evictionRunIntervalMillis: 10000,
+    };
   }
+}
+
+cds.on('bootstrap', (app) => {
   // Health check endpoint
   app.get('/health', (_req, res) => {
     res.json({
