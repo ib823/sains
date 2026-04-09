@@ -583,8 +583,9 @@ async function main() {
   // Auto-deploy schema for in-memory profiles so the seeder is self-sufficient.
   // Deploy to the *connected* db handle so we share the same SQLite instance.
   // Always load the CDS model so entity names resolve for INSERT/SELECT.
-  // For development profile, also deploy the schema to in-memory SQLite.
+  // cds.model must be set for @cap-js/postgres to resolve entity definitions.
   const csn = await cds.load([path.resolve('db'), path.resolve('srv')]);
+  cds.model = cds.compile.for.nodejs(csn);
   if (process.env.CDS_ENV === 'development') {
     await cds.deploy(csn).to(db);
   }
