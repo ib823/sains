@@ -7,6 +7,28 @@ require('dns').setDefaultResultOrder('ipv4first');
 const cds = require('@sap/cds');
 const path = require('path');
 
+// ── DATABASE_URL OVERRIDE ─────────────────────────────────────────────────
+// CAP does NOT substitute ${VAR} placeholders in .cdsrc.json credential strings.
+// If DATABASE_URL is set and we're in a postgres profile, override cds.env at
+// runtime so the @cap-js/postgres adapter connects to the real database.
+if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
+  cds.env.requires.db = {
+    kind: 'postgres',
+    impl: '@cap-js/postgres',
+    credentials: {
+      url: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+    },
+    pool: {
+      min: 1,
+      max: 5,
+      acquireTimeoutMillis: 60000,
+      idleTimeoutMillis: 30000,
+      evictionRunIntervalMillis: 10000,
+    },
+  };
+}
+
 cds.on('bootstrap', (app) => {
   // Health check endpoint
   app.get('/health', (_req, res) => {
