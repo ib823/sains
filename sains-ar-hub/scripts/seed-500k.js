@@ -35,20 +35,20 @@ const cds = require('@sap/cds');
 // If DATABASE_URL is set, override cds.env.requires.db at runtime so the
 // configured profile (postgres / postgres-cloud) actually connects there.
 if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
-  let dbUrl = process.env.DATABASE_URL;
-  if (dbUrl.includes('pooler.supabase.com') && !dbUrl.includes('pgbouncer=true')) {
-    dbUrl += (dbUrl.includes('?') ? '&' : '?') + 'pgbouncer=true';
-  }
+  const u = new URL(process.env.DATABASE_URL);
   cds.env.requires.db = {
     kind: 'postgres',
     impl: '@cap-js/postgres',
     credentials: {
-      url: dbUrl,
+      host: u.hostname,
+      port: parseInt(u.port || '5432', 10),
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      database: u.pathname.replace(/^\//, '') || 'postgres',
       ssl: { rejectUnauthorized: false },
     },
     pool: {
-      min: 1,
-      max: 5,
+      min: 1, max: 5,
       acquireTimeoutMillis: 60000,
       idleTimeoutMillis: 30000,
       evictionRunIntervalMillis: 10000,

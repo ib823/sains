@@ -8,15 +8,20 @@ const cds = require('@sap/cds');
 const path = require('path');
 
 // ── DATABASE_URL OVERRIDE ─────────────────────────────────────────────────
-// CAP does NOT substitute ${VAR} in .cdsrc.json credential strings.
-// Mutate the already-loaded cds.env.requires.db.credentials object in-place
-// at module scope (immediately after cds is required, before any service starts).
+// @cap-js/postgres does not reliably parse credentials.url connection strings.
+// Parse DATABASE_URL and pass explicit host/port/user/password/database/ssl.
 if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres')) {
   const dbCfg = cds.env.requires.db;
   if (dbCfg) {
-    dbCfg.credentials = dbCfg.credentials || {};
-    dbCfg.credentials.url = process.env.DATABASE_URL;
-    dbCfg.credentials.ssl = { rejectUnauthorized: false };
+    const u = new URL(process.env.DATABASE_URL);
+    dbCfg.credentials = {
+      host: u.hostname,
+      port: parseInt(u.port || '5432', 10),
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      database: u.pathname.replace(/^\//, '') || 'postgres',
+      ssl: { rejectUnauthorized: false },
+    };
     dbCfg.pool = {
       min: 1, max: 5,
       acquireTimeoutMillis: 60000,
