@@ -20,8 +20,10 @@ function isTBCPlaceholder(value) {
  */
 function validateEnvironment(options = {}) {
   const logger = require('@sap/cds').log('env-validation');
+  // Strict mode = real BTP production (VCAP_SERVICES always present on Cloud Foundry).
+  // NODE_ENV=production alone (fly.io, Railway, Render) is treated as staging — warn, don't throw.
   const isProduction = options.strict
-    ?? (process.env.NODE_ENV === 'production' || !!process.env.VCAP_SERVICES);
+    ?? (!!process.env.VCAP_SERVICES);
 
   const results = { errors: [], warnings: [] };
 

@@ -42,7 +42,13 @@ if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres
       url: process.env.DATABASE_URL,
       ssl: { rejectUnauthorized: false },
     },
-    pool: { min: 2, max: 10, acquireTimeoutMillis: 30000 },
+    pool: {
+      min: 1,
+      max: 5,
+      acquireTimeoutMillis: 60000,
+      idleTimeoutMillis: 30000,
+      evictionRunIntervalMillis: 10000,
+    },
   };
 }
 
