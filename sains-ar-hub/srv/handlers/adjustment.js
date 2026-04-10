@@ -86,6 +86,19 @@ module.exports = (srv) => {
     return true;
   });
 
+  /**
+   * Post an approved adjustment to the account balance.
+   *
+   * DESIGN DECISION: Adjustment GL posting is intentionally BATCHED in the daily GL run
+   * (runDailyGLPostingJob in dunning.js) rather than posted immediately. This is because:
+   * 1. Daily aggregation reduces the number of SAP journal entries (cost optimization)
+   * 2. Adjustments are included in the daily debit/credit summary alongside invoices and payments
+   * 3. The daily batch ensures debit-credit balance validation across all transaction types
+   *
+   * To enable immediate GL posting for adjustments, set ADJUSTMENT_GL_IMMEDIATE=true
+   * in the environment. When enabled, postAdjustment will call postJournalEntry directly.
+   * Default: false (batched with daily GL run).
+   */
   srv.on('postAdjustment', 'Adjustments', async (req) => {
     const ID = req.params[0]?.ID ?? req.params[0];
     const db = await cds.connect.to('db');

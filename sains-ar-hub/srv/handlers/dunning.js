@@ -228,41 +228,118 @@ async function runDailyGLPostingJob(postingDate = new Date()) {
 
 async function runPeriodAccrualJob(year, month) {
   const db = await cds.connect.to('db');
+  const logger = cds.log('dunning');
+  const { SAP_CORE } = require('../lib/constants');
 
-  // Only run on last day of month
-  const lastDay = dayjs(`${year}-${String(month).padStart(2, '0')}-01`).endOf('month');
-  const today = dayjs();
-  if (today.format('YYYY-MM-DD') !== lastDay.format('YYYY-MM-DD')) {
-    logger.info('Period accrual: not last day of month — skipping');
+  const periodEnd = dayjs(`${year}-${String(month).padStart(2,'0')}-01`).endOf('month').format('YYYY-MM-DD');
+
+  // Check if already run for this period (idempotency)
+  const existing = await db.run(
+    SELECT.one.from('sains.ar.GLPostingBatch')
+      .where({ idempotencyKey: `ACCRUAL_${year}_${month}`, status: { '!=': 'FAILED' } })
+  );
+  if (existing) {
+    logger.info(`Period accrual for ${year}-${month} already exists (${existing.ID}) — skipping`);
     return { processed: 0, accrualTransactions: 0 };
   }
 
-  logger.info(`Running period accrual for ${year}-${month}`);
+  const BATCH_SIZE = 5000;
+  let totalAccrual = 0;
+  let accountsProcessed = 0;
+  let offset = 0;
 
-  // Calculate unbilled days x daily rate per active metered account
-  const accounts = await db.run(
-    SELECT.from('sains.ar.CustomerAccount')
-      .columns('ID', 'accountNumber', 'branchCode')
-      .where({ accountStatus: ACCOUNT_STATUS.ACTIVE })
-  );
+  // Process accounts in batches of 5000
+  while (true) {
+    const accounts = await db.run(
+      SELECT.from('sains.ar.CustomerAccount')
+        .columns('ID', 'accountNumber', 'accountType_code', 'billingBasis_code')
+        .where({ accountStatus: { in: ['ACTIVE', 'RESTRICTED'] }, billingBasis_code: 'MTR' })
+        .limit(BATCH_SIZE, offset)
+    );
+    if (accounts.length === 0) break;
 
-  // Simplified accrual: just create the GL batch
+    for (const acct of accounts) {
+      // Find last 3 invoices to estimate average monthly consumption
+      const recentInvoices = await db.run(
+        SELECT.from('sains.ar.Invoice')
+          .columns('totalAmount', 'taxAmount', 'invoiceDate', 'billingPeriodFrom', 'billingPeriodTo')
+          .where({ account_ID: acct.ID, status: { in: ['OPEN', 'CLEARED', 'PARTIAL'] } })
+          .orderBy('invoiceDate desc')
+          .limit(3)
+      );
+
+      if (recentInvoices.length === 0) continue;
+
+      // Average monthly revenue (excluding tax)
+      const avgMonthlyRevenue = recentInvoices.reduce((sum, inv) =>
+        sum + Number(inv.totalAmount || 0) - Number(inv.taxAmount || 0), 0
+      ) / recentInvoices.length;
+
+      // Days since last invoice to period end
+      const lastInvoiceDate = recentInvoices[0]?.invoiceDate;
+      if (!lastInvoiceDate) continue;
+
+      const daysSinceLastInvoice = dayjs(periodEnd).diff(dayjs(lastInvoiceDate), 'day');
+      if (daysSinceLastInvoice <= 0) continue;
+
+      // Pro-rate: (avg daily revenue) × days unbilled
+      const dailyRevenue = avgMonthlyRevenue / 30;
+      const unbilledRevenue = Math.round(dailyRevenue * Math.min(daysSinceLastInvoice, 30) * 100) / 100;
+
+      if (unbilledRevenue > 0) {
+        totalAccrual += unbilledRevenue;
+        accountsProcessed++;
+      }
+    }
+
+    offset += BATCH_SIZE;
+    logger.info(`Period accrual: processed ${offset} accounts so far, accrual RM ${totalAccrual.toFixed(2)}`);
+  }
+
+  if (totalAccrual <= 0) {
+    logger.info(`Period accrual for ${year}-${month}: no unbilled revenue to accrue`);
+    return { processed: accountsProcessed, accrualTransactions: 0 };
+  }
+
+  // Build GL batch
   const glMappings = await db.run(SELECT.from('sains.ar.GLAccountMapping').where({ isActive: true }));
+  const transactions = [{
+    transactionType: 'PERIOD_ACCRUAL',
+    accountTypeCode: 'ALL',
+    chargeTypeCode: 'ALL',
+    chargeType: 'ALL',
+    branchCode: 'COMMON',
+    amount: totalAccrual,
+    referenceDocType: 'PERIOD_ACCRUAL',
+    referenceDocID: `ACCRUAL_${year}_${month}`,
+  }];
 
-  const batchID = uuidv4();
+  const batch = buildDailySummaryBatch(transactions, glMappings, periodEnd, SAP_CORE.COMPANY_CODE);
+  batch.idempotencyKey = `ACCRUAL_${year}_${month}`;
+  batch.headerText = `Period accrual ${year}-${String(month).padStart(2,'0')}`;
+  batch.postingType = 'PERIOD_ACCRUAL';
+
+  const payload = buildJournalEntryPayload(batch);
+  const result = await postJournalEntry(payload, batch.ID);
+
+  // Persist batch
   await db.run(INSERT.into('sains.ar.GLPostingBatch').entries({
-    ID: batchID,
-    batchDate: lastDay.format('YYYY-MM-DD'),
+    ID: batch.ID || uuidv4(),
+    idempotencyKey: batch.idempotencyKey,
+    batchDate: periodEnd,
     postingType: 'PERIOD_ACCRUAL',
-    status: GL_POSTING_STATUS.PREPARED,
-    totalDebitAmount: 0,
-    totalCreditAmount: 0,
-    lineCount: 0,
-    idempotencyKey: `ACCRUAL_${year}_${month}`,
+    status: result.success ? GL_POSTING_STATUS.ACCEPTED : GL_POSTING_STATUS.REJECTED,
+    totalDebitAmount: totalAccrual,
+    totalCreditAmount: totalAccrual,
+    lineCount: 2,
+    sapCoreDocNumber: result.documentNumber,
+    rejectionReason: result.errorMessage,
+    submittedAt: new Date().toISOString(),
   }));
 
-  logger.info(`Period accrual batch ${batchID} created for ${year}-${month}`);
-  return { processed: accounts.length, accrualTransactions: accounts.length };
+  // MOCK: uses average consumption estimation. Production may use meter read interpolation.
+  logger.info(`Period accrual ${year}-${month}: RM ${totalAccrual.toFixed(2)} from ${accountsProcessed} accounts`);
+  return { processed: accountsProcessed, accrualTransactions: totalAccrual > 0 ? 1 : 0 };
 }
 
 module.exports = { runNightlyDunningJob, runDailyGLPostingJob, runPeriodAccrualJob };

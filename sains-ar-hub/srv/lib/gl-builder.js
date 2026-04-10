@@ -136,7 +136,7 @@ function _buildDailySummaryBatchLegacy(batchDate, invoices, payments, adjustment
  */
 function buildJournalEntryPayload(batch, lines) {
   const batchLines = lines || batch.lines || [];
-  return {
+  const payload = {
     CompanyCode: batch.sapCoreCompanyCode || SAP_CORE.COMPANY_CODE,
     CompanyCodeCurrency: SAP_CORE.CURRENCY,
     DocumentDate: batch.batchDate,
@@ -157,6 +157,16 @@ function buildJournalEntryPayload(batch, lines) {
       })),
     },
   };
+
+  if (batch.postingType === 'PERIOD_ACCRUAL') {
+    payload.IsReversalDocument = false;  // This is the original accrual, not the reversal
+    // SAP will auto-reverse on the 1st of the following month
+    const postDate = dayjs(batch.batchDate || batch.postingDate);
+    payload.ReversalPostingDate = postDate.add(1, 'month').startOf('month').format('YYYY-MM-DD');
+    payload.ReversalReason = '01'; // SAP standard reversal reason code for monthly accrual
+  }
+
+  return payload;
 }
 
 /**
