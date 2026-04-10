@@ -477,7 +477,11 @@ entity DunningHistory : cuid, managed {
   postalReference   : String(50);
   postalReturnedAt  : DateTime;
   resolvedAt        : DateTime;
-  resolutionType    : String(30);
+  resolutionType    : String(30);  // PAYMENT | PTP | PLAN | DISPUTE | MANUAL
+  resolvedByPaymentID  : UUID;
+  resolvedByPTPID      : UUID;
+  resolvedByPlanID     : UUID;
+  regulatoryRef        : String(50);  // Act 655 section reference
 }
 
 // ─── PAYMENT PLAN ──────────────────────────────────────────────────────────

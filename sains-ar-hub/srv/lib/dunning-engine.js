@@ -49,7 +49,10 @@ function evaluateDunning(account, invoices, asOfDate) {
   let proposedLevel;
   let noticeType;
 
-  if (overdueDays >= DUNNING_THRESHOLDS.LEVEL_4) {
+  if (overdueDays >= DUNNING_THRESHOLDS.LEVEL_5) {
+    proposedLevel = DUNNING_LEVEL.LEGAL_ACTION;
+    noticeType = 'LEGAL_REFERRAL';
+  } else if (overdueDays >= DUNNING_THRESHOLDS.LEVEL_4) {
     proposedLevel = DUNNING_LEVEL.DISCONNECTED;
     noticeType = 'DISCONNECTION_CONFIRMATION';
   } else if (overdueDays >= DUNNING_THRESHOLDS.LEVEL_3) {

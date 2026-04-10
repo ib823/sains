@@ -6,6 +6,7 @@ const {
   runNightlyDunningJob,
   runDailyGLPostingJob,
   runPeriodAccrualJob,
+  runPTPComplianceCheck,
 } = require('./handlers/dunning');
 
 const invoiceHandler     = require('./handlers/invoice');
@@ -219,6 +220,23 @@ module.exports = cds.service.impl(async function() {
     return true;
   });
 
+  // ── PTP COMPLIANCE CHECK ──────────────────────────────────────────────
+  srv.on('triggerPTPComplianceCheck', async (req) => {
+    return await runPTPComplianceCheck();
+  });
+
+  // ── POSTAL RETURN TRACKING (CHANGE 8) ─────────────────────────────────
+  srv.on('recordPostalReturn', 'DunningHistories', async (req) => {
+    const ID = req.params[0]?.ID ?? req.params[0];
+    const db = await cds.connect.to('db');
+    const now = new Date().toISOString();
+    await db.run(UPDATE('sains.ar.DunningHistory').set({
+      postalReturnedAt: now,
+    }).where({ ID }));
+    await logAction(req, 'RECORD_POSTAL_RETURN', 'DunningHistory', ID, null, { postalReturnedAt: now });
+    return true;
+  });
+
   // ── JOB TRIGGERS ──────────────────────────────────────────────────────
   srv.on('triggerDunningBatch', async (req) => {
     const date = req.data?.date ? new Date(req.data.date) : new Date();
@@ -286,6 +304,9 @@ async function _registerScheduledJobs() {
     { name: 'sains-ar-nightly-dunning', description: 'Nightly dunning evaluation',
       schedules: [{ cron: '0 2 * * *', description: '2:00 AM MYT' }],
       httpMethod: 'POST', action: `${appUrl}/ar/triggerDunningBatch` },
+    { name: 'sains-ar-ptp-compliance', description: 'Daily PTP compliance check and plan breach detection',
+      schedules: [{ cron: '0 4 * * *', description: '4:00 AM MYT' }],
+      httpMethod: 'POST', action: `${appUrl}/ar/triggerPTPComplianceCheck` },
     { name: 'sains-ar-daily-gl-posting', description: 'Daily GL summary posting',
       schedules: [{ cron: '0 1 * * *', description: '1:00 AM MYT' }],
       httpMethod: 'POST', action: `${appUrl}/ar/triggerGLPosting` },

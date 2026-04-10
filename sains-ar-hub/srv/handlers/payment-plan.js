@@ -20,6 +20,33 @@ module.exports = (srv) => {
 
     plan.planStatus = 'PENDING_APPROVAL';
     plan.outstandingAtStart = account.balanceOutstanding;
+
+    // CHANGE 2: Auto-generate instalments
+    const dayjs = require('dayjs');
+    const totalAmount = Number(plan.outstandingAtStart || 0);
+    const startDate = plan.startDate ? dayjs(plan.startDate) : dayjs();
+
+    // Determine duration: explicit field → compute from endDate → totalInstalments → default 6
+    let durationMonths = plan.durationMonths;
+    if (!durationMonths && plan.startDate && plan.endDate) {
+      durationMonths = Math.max(1, dayjs(plan.endDate).diff(startDate, 'month'));
+    }
+    if (!durationMonths) durationMonths = plan.totalInstalments || 6;
+
+    const instalmentAmount = Math.round((totalAmount / durationMonths) * 100) / 100;
+    const remainder = Math.round((totalAmount - instalmentAmount * durationMonths) * 100) / 100;
+
+    plan.totalInstalments = durationMonths;
+    plan.instalmentAmount = instalmentAmount;
+
+    plan.instalments = [];
+    for (let i = 1; i <= durationMonths; i++) {
+      const dueDate = startDate.add(i, 'month').format('YYYY-MM-DD');
+      const amount = i === durationMonths
+        ? Math.round((instalmentAmount + remainder) * 100) / 100
+        : instalmentAmount;
+      plan.instalments.push({ instalmentNumber: i, dueDate, amount, status: 'PENDING' });
+    }
   });
 
   srv.on('approvePlan', 'PaymentPlans', async (req) => {
@@ -66,10 +93,19 @@ module.exports = (srv) => {
     const plan = await db.run(SELECT.one.from('sains.ar.PaymentPlan').where({ ID }));
     if (!plan) return req.error(404, 'Payment plan not found');
 
+    // CHANGE 5: Calculate residual = sum of all PENDING instalment amounts
+    const pendingInstalments = await db.run(
+      SELECT.from('sains.ar.PaymentPlanInstalment').where({ plan_ID: ID, status: 'PENDING' })
+    );
+    const residualAmount = pendingInstalments.reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
+    const voidedReason = residualAmount > 0
+      ? `${reason || ''} [Residual outstanding: RM ${residualAmount.toFixed(2)}]`.trim()
+      : reason;
+
     await db.run(UPDATE('sains.ar.PaymentPlan').set({
       planStatus: 'VOIDED',
       voidedAt: new Date().toISOString(),
-      voidedReason: reason,
+      voidedReason,
     }).where({ ID }));
 
     // Remove payment plan flag from account

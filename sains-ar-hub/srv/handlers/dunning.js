@@ -10,6 +10,15 @@ const { postJournalEntry } = require('../external/sap-core-api');
 const { sendEmail, sendSMS, queuePostalNotice, sendSystemAlert } = require('../external/notification-service');
 const { DUNNING_LEVEL, INVOICE_STATUS, ACCOUNT_STATUS, GL_POSTING_STATUS } = require('../lib/constants');
 
+// MOCK: section references are illustrative. Confirm exact Act 655 sections with SAINS Legal.
+const REGULATORY_REFS = {
+  1: 'Act655.S43.1',  // reminder notice
+  2: 'Act655.S43.2',  // formal notice
+  3: 'Act655.S44.1',  // disconnection warning
+  4: 'Act655.S44.2',  // disconnection order
+  5: 'Act655.S45',    // legal proceedings
+};
+
 const logger = cds.log('dunning-job');
 const BATCH_SIZE = 5000;
 
@@ -96,7 +105,15 @@ async function _processSingleAccount(db, account, evalDate) {
       overdueDays: decision.overdueDays,
       overdueAmount: decision.overdueAmount,
       noticeType: decision.noticeType,
+      regulatoryRef: REGULATORY_REFS[decision.newDunningLevel] || null,
     }));
+
+    // Level 5: set isLegalAction flag on account
+    if (decision.newDunningLevel >= DUNNING_LEVEL.LEGAL_ACTION) {
+      await db.run(UPDATE('sains.ar.CustomerAccount').set({
+        isLegalAction: true,
+      }).where({ ID: account.ID }));
+    }
 
     if (channels.includes('EMAIL') && account.emailAddress) {
       try {
@@ -342,4 +359,127 @@ async function runPeriodAccrualJob(year, month) {
   return { processed: accountsProcessed, accrualTransactions: totalAccrual > 0 ? 1 : 0 };
 }
 
-module.exports = { runNightlyDunningJob, runDailyGLPostingJob, runPeriodAccrualJob };
+/**
+ * CHANGE 1: PTP automatic compliance check — runs daily at 04:00
+ * Evaluates all ACTIVE PTPs: marks them HONOURED, BROKEN, or EXPIRED.
+ */
+async function runPTPComplianceCheck() {
+  const db = await cds.connect.to('db');
+  const today = dayjs();
+  const todayStr = today.format('YYYY-MM-DD');
+
+  const activePTPs = await db.run(
+    SELECT.from('sains.ar.PromiseToPay').where({ status: 'ACTIVE' })
+  );
+
+  let checked = 0, honoured = 0, broken = 0, expired = 0;
+
+  for (const ptp of activePTPs) {
+    checked++;
+    const promisedDate = dayjs(ptp.promisedDate);
+
+    if (!promisedDate.isBefore(today, 'day')) continue; // not yet due
+
+    // More than 30 days past promisedDate with no resolution → EXPIRED
+    if (today.diff(promisedDate, 'day') > 30) {
+      await db.run(UPDATE('sains.ar.PromiseToPay').set({
+        status: 'EXPIRED',
+        resolvedAt: new Date().toISOString(),
+      }).where({ ID: ptp.ID }));
+      expired++;
+      continue;
+    }
+
+    // Check for qualifying payments received between PTP creation date and today
+    const ptpCreatedStr = (ptp.createdAt || ptp.promisedDate).substring(0, 10);
+    const payments = await db.run(
+      SELECT.from('sains.ar.Payment')
+        .columns('ID', 'amount', 'paymentDate', 'status')
+        .where({
+          account_ID: ptp.account_ID,
+          paymentDate: { '>=': ptpCreatedStr, '<=': todayStr },
+          status: { not: { in: ['REVERSED', 'BOUNCED'] } },
+        })
+    );
+
+    const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+    if (totalPaid >= Number(ptp.promisedAmount)) {
+      // Find the earliest payment on or before promisedDate
+      const onTime = payments
+        .filter(p => !dayjs(p.paymentDate).isAfter(promisedDate))
+        .sort((a, b) => a.paymentDate.localeCompare(b.paymentDate));
+      const paymentDate = (onTime[0]?.paymentDate || todayStr);
+      await db.run(UPDATE('sains.ar.PromiseToPay').set({
+        status: 'HONOURED',
+        resolvedAt: paymentDate + 'T00:00:00.000Z',
+      }).where({ ID: ptp.ID }));
+      honoured++;
+    } else {
+      await db.run(UPDATE('sains.ar.PromiseToPay').set({
+        status: 'BROKEN',
+        resolvedAt: new Date().toISOString(),
+      }).where({ ID: ptp.ID }));
+      broken++;
+    }
+  }
+
+  // Also run payment plan breach detection as part of the daily collections health check
+  const planResult = await runPaymentPlanBreachCheck();
+
+  logger.info(`PTP compliance: ${checked} checked, ${honoured} honoured, ${broken} broken, ${expired} expired`);
+  return { checked, honoured, broken, expired, ...planResult };
+}
+
+/**
+ * CHANGE 4: Payment plan breach detection
+ * Finds ACTIVE plans with 2+ missed instalments and marks them BREACHED.
+ */
+async function runPaymentPlanBreachCheck() {
+  const db = await cds.connect.to('db');
+  const today = dayjs().format('YYYY-MM-DD');
+
+  const activePlans = await db.run(
+    SELECT.from('sains.ar.PaymentPlan').where({ planStatus: 'ACTIVE' })
+  );
+
+  let plansChecked = 0, plansBreach = 0;
+
+  for (const plan of activePlans) {
+    plansChecked++;
+
+    const missedInstalments = await db.run(
+      SELECT.from('sains.ar.PaymentPlanInstalment')
+        .where({ plan_ID: plan.ID, status: 'PENDING', dueDate: { '<': today } })
+    );
+
+    if (missedInstalments.length >= 2) {
+      await db.run(UPDATE('sains.ar.PaymentPlan').set({
+        planStatus: 'BREACHED',
+        breachCount: missedInstalments.length,
+      }).where({ ID: plan.ID }));
+
+      // Resume dunning on the account
+      await db.run(UPDATE('sains.ar.CustomerAccount').set({
+        isPaymentPlan: false,
+      }).where({ ID: plan.account_ID }));
+
+      try {
+        await logSystemAction('BREACH', 'PaymentPlan', plan.ID, {
+          missedInstalments: missedInstalments.length,
+          planID: plan.ID,
+          accountID: plan.account_ID,
+        }, plan.account_ID);
+      } catch (err) {
+        logger.error(`Breach audit log failed for plan ${plan.ID}: ${err.message}`);
+      }
+
+      plansBreach++;
+    }
+  }
+
+  logger.info(`Plan breach check: ${plansChecked} checked, ${plansBreach} breached`);
+  return { plansChecked, plansBreach };
+}
+
+module.exports = { runNightlyDunningJob, runDailyGLPostingJob, runPeriodAccrualJob, runPTPComplianceCheck, runPaymentPlanBreachCheck };

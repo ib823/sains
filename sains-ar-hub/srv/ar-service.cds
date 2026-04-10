@@ -253,13 +253,23 @@ service ARService @(path:'/ar') {
 
   // ── DUNNING ─────────────────────────────────────────────────────────────
   @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','BILStaff','BILSupervisor','Auditor','CollectionsOfficer'])
-  entity DunningHistories as projection on ar.DunningHistory;
+  entity DunningHistories as projection on ar.DunningHistory
+  actions {
+    @(requires:['FinanceAdmin','BILStaff'])
+    action recordPostalReturn() returns Boolean;
+  };
 
   // ── DIRECT DEBIT ────────────────────────────────────────────────────────
   @(requires:['FinanceAdmin','FinanceSupervisor','BILStaff'])
   entity DirectDebitMandates as projection on ar.DirectDebitMandate;
 
   // ── JOB TRIGGERS (SystemProcess only) ──────────────────────────────────
+  @(requires:['SystemProcess'])
+  action triggerPTPComplianceCheck() returns {
+    checked: Integer; honoured: Integer; broken: Integer; expired: Integer;
+    plansChecked: Integer; plansBreach: Integer;
+  };
+
   @(requires:['SystemProcess'])
   action triggerDunningBatch(date: Date) returns {
     processed: Integer; escalated: Integer; reset: Integer; errors: Integer;

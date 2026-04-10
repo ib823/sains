@@ -188,6 +188,63 @@ async function _createPaymentFromEvent(db, event) {
     orchestratorEventID: event.ID,
   }, account.ID);
 
+  // CHANGE 3: Instalment matching for active payment plans
+  if (totalCleared > 0) {
+    try {
+      const activePlan = await db.run(
+        SELECT.one.from('sains.ar.PaymentPlan')
+          .where({ account_ID: account.ID, planStatus: 'ACTIVE' })
+      );
+      if (activePlan) {
+        const nextInstalment = await db.run(
+          SELECT.one.from('sains.ar.PaymentPlanInstalment')
+            .where({ plan_ID: activePlan.ID, status: 'PENDING' })
+            .orderBy({ dueDate: 'asc' })
+        );
+        if (nextInstalment && event.amount >= Number(nextInstalment.amount)) {
+          await db.run(UPDATE('sains.ar.PaymentPlanInstalment').set({
+            status: 'PAID',
+            paidDate: event.transactionDate,
+            paidAmount: event.amount,
+            paymentID: paymentID,
+          }).where({ ID: nextInstalment.ID }));
+
+          // Check if all instalments are now paid → complete the plan
+          const remaining = await db.run(
+            SELECT.from('sains.ar.PaymentPlanInstalment')
+              .where({ plan_ID: activePlan.ID, status: 'PENDING' })
+          );
+          if (remaining.length === 0) {
+            await db.run(UPDATE('sains.ar.PaymentPlan').set({
+              planStatus: 'COMPLETED',
+              completedAt: new Date().toISOString(),
+            }).where({ ID: activePlan.ID }));
+          }
+        }
+      }
+    } catch (err) {
+      logger.warn(`Instalment matching failed for account ${account.ID}: ${err.message}`);
+    }
+
+    // CHANGE 7: Resolve the latest open dunning history entry
+    try {
+      const latestDunning = await db.run(
+        SELECT.one.from('sains.ar.DunningHistory')
+          .where({ account_ID: account.ID, resolutionType: null })
+          .orderBy({ triggeredDate: 'desc' })
+      );
+      if (latestDunning) {
+        await db.run(UPDATE('sains.ar.DunningHistory').set({
+          resolvedByPaymentID: paymentID,
+          resolutionType: 'PAYMENT',
+          resolvedAt: new Date().toISOString(),
+        }).where({ ID: latestDunning.ID }));
+      }
+    } catch (err) {
+      logger.warn(`Dunning resolution recording failed for account ${account.ID}: ${err.message}`);
+    }
+  }
+
   // Check if this payment clears a TEMP_DISCONNECTED account
   const { checkAndTriggerReconnection } = require('../lib/clearing-engine');
   await checkAndTriggerReconnection(db, account.ID, event.rawReference);
