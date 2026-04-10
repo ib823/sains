@@ -99,6 +99,28 @@ module.exports = cds.service.impl(async function() {
     }
   });
 
+  // ── PERIOD LOCK ENFORCEMENT ────────────────────────────────────────────────
+  const { isPeriodLocked } = require('./lib/period-lock');
+
+  srv.before('CREATE', 'Invoices', async (req) => {
+    if (await isPeriodLocked(req.data.invoiceDate)) {
+      return req.error(409, `Period is locked for ${req.data.invoiceDate}. Contact Finance Manager to unlock.`);
+    }
+  });
+
+  srv.before('CREATE', 'Payments', async (req) => {
+    if (await isPeriodLocked(req.data.paymentDate)) {
+      return req.error(409, `Period is locked for ${req.data.paymentDate}. Contact Finance Manager to unlock.`);
+    }
+  });
+
+  srv.before('CREATE', 'Adjustments', async (req) => {
+    const postingDate = req.data.postingDate || req.data.createdAt || new Date().toISOString().substring(0, 10);
+    if (await isPeriodLocked(postingDate)) {
+      return req.error(409, `Period is locked for ${postingDate}. Contact Finance Manager to unlock.`);
+    }
+  });
+
   // ── PTP ACTIONS ───────────────────────────────────────────────────────
   srv.on('markBroken', 'PromisesToPay', async (req) => {
     const ID = req.params[0]?.ID ?? req.params[0];

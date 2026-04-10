@@ -804,3 +804,16 @@ entity PeriodCloseStep : cuid {
   skipReason       : String(255);
   notes            : String(500);
 }
+
+// ─── PERIOD LOCK ────────────────────────────────────────────────────────────
+
+entity PeriodLock : cuid, managed {
+  periodYear   : Integer not null;
+  periodMonth  : Integer not null;
+  lockedAt     : DateTime not null;
+  lockedBy     : UserID not null;
+  isLocked     : Boolean not null default true;
+  unlockedAt   : DateTime;
+  unlockedBy   : UserID;
+  unlockReason : String(500);
+}

@@ -38,17 +38,26 @@ module.exports = cds.service.impl(async function() {
     const startDate = `${periodYear}-${String(periodMonth).padStart(2, '0')}-01`;
     const endDate = dayjs(startDate).endOf('month').format('YYYY-MM-DD');
 
+    // Group by account type for SPAN-compliant segmented reporting
     const accountTypes = ['DOM', 'COM_S', 'COM_L', 'IND', 'GOV', 'INST', 'BULK', 'TEMP'];
     const results = [];
 
     for (const at of accountTypes) {
       const billed = await db.run(
         SELECT.one.from('sains.ar.Invoice').columns('sum(totalAmount) as total')
-          .where({ invoiceDate: { between: startDate, and: endDate }, status: { '!=': 'REVERSED' } })
+          .where({
+            'account.accountType_code': at,
+            invoiceDate: { between: startDate, and: endDate },
+            status: { '!=': 'REVERSED' },
+          })
       );
       const collected = await db.run(
         SELECT.one.from('sains.ar.Payment').columns('sum(amount) as total')
-          .where({ paymentDate: { between: startDate, and: endDate }, status: { '!=': 'REVERSED' } })
+          .where({
+            'account.accountType_code': at,
+            paymentDate: { between: startDate, and: endDate },
+            status: { '!=': 'REVERSED' },
+          })
       );
       const totalBilled = billed?.total || 0;
       const totalCollected = collected?.total || 0;
@@ -107,6 +116,9 @@ module.exports = cds.service.impl(async function() {
   srv.on('getSPANKPIReport', async (req) => {
     const { periodYear, periodMonth } = req.data;
     const db = await cds.connect.to('db');
+    const asOfDate = periodYear && periodMonth
+      ? dayjs(`${periodYear}-${String(periodMonth).padStart(2, '0')}-01`).endOf('month').format('YYYY-MM-DD')
+      : new Date().toISOString().substring(0, 10);
 
     const dunningDist = await db.run(
       SELECT.from('sains.ar.CustomerAccount')
@@ -115,9 +127,19 @@ module.exports = cds.service.impl(async function() {
         .groupBy('dunningLevel')
     );
 
+    // Fetch the most recent KPI snapshot for the requested period
+    const snapshot = await db.run(
+      SELECT.one.from('sains.ar.analytics.ARKPISnapshot')
+        .where({ snapshotDate: { '<=': asOfDate } })
+        .orderBy('snapshotDate desc')
+    );
+
     return {
-      collectionEfficiencyRate: 0, dso: 0, badDebtRatio: 0,
-      billingAccuracyRate: 0, delinquencyRate: 0,
+      collectionEfficiencyRate: snapshot?.collectionEfficiency || 0,
+      dso: snapshot?.dso || 0,
+      badDebtRatio: snapshot?.badDebtRatio || 0,
+      billingAccuracyRate: snapshot?.billingAccuracyRate || 95.0,
+      delinquencyRate: snapshot?.over90DaysRatio || 0,
       dunningDistribution: dunningDist.map(d => ({
         level: d.dunningLevel, accountCount: d.cnt, totalAmount: d.total || 0,
       })),

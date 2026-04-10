@@ -198,6 +198,46 @@ module.exports = cds.service.impl(async function() {
     return { valid: true, registeredName: null, message: 'TIN format valid' };
   });
 
+  // ── PERIOD CLOSE SIGN-OFF ─────────────────────────────────────────────────
+  const { lockPeriod } = require('./lib/period-lock');
+
+  srv.on('signOffPeriodClose', async (req) => {
+    const { periodYear, periodMonth } = req.data;
+    const db = await cds.connect.to('db');
+
+    // Verify all checklist steps are COMPLETED
+    const checklist = await db.run(
+      SELECT.one.from('sains.ar.PeriodCloseChecklist')
+        .where({ periodYear, periodMonth })
+    );
+    if (!checklist) return req.error(404, `No checklist found for ${periodYear}-${periodMonth}`);
+
+    const steps = await db.run(
+      SELECT.from('sains.ar.PeriodCloseStep')
+        .where({ checklist_ID: checklist.ID })
+    );
+
+    const incomplete = steps.filter(s => s.status !== 'COMPLETED');
+    if (incomplete.length > 0) {
+      return req.error(400, `Cannot sign off: ${incomplete.length} step(s) not completed: ${incomplete.map(s => s.stepName).join(', ')}`);
+    }
+
+    // Lock the period
+    await lockPeriod(periodYear, periodMonth, req.user.id);
+
+    // Update checklist status
+    await db.run(
+      UPDATE('sains.ar.PeriodCloseChecklist').set({
+        status: 'SIGNED_OFF',
+      }).where({ ID: checklist.ID })
+    );
+
+    await logAction(req, 'SIGN_OFF_PERIOD', 'PeriodCloseChecklist', checklist.ID,
+      { status: checklist.status }, { status: 'SIGNED_OFF' });
+
+    return true;
+  });
+
   // ── Phase 3: Period close step notification (Scenario 11.6) ─────────────
   srv.after('UPDATE', 'PeriodCloseSteps', async (data, req) => {
     if (data.status === 'DUE' || data.status === 'PENDING') {

@@ -96,4 +96,7 @@ service AdminService @(path:'/admin') {
     registeredName: String(150);
     message: String(255);
   };
+
+  @(requires:['FinanceManager','CFO'])
+  action signOffPeriodClose(periodYear: Integer, periodMonth: Integer) returns Boolean;
 }

@@ -209,11 +209,12 @@ module.exports = cds.service.impl(async function () {
   this.on('generateAuditorConfirmationLetters', async (req) => {
     const { auditYear, sampleSize, minBalance, auditorEmail } = req.data;
     let generated = 0;
+    const letters = [];
 
     // Sample accounts by balance criteria
     const accounts = await SELECT.from(ar.CustomerAccount)
       .where({
-        status: 'ACTIVE',
+        accountStatus: 'ACTIVE',
         balanceOutstanding: { '>=': minBalance },
       })
       .orderBy({ balanceOutstanding: 'desc' })
@@ -221,18 +222,22 @@ module.exports = cds.service.impl(async function () {
 
     for (const account of accounts) {
       try {
+        const letterDate = new Date().toISOString();
         const letter = {
           auditYear,
           account_ID: account.ID,
           accountNumber: account.accountNumber,
-          customerName: account.customerName,
+          accountName: account.legalName,
           confirmedBalance: account.balanceOutstanding,
-          letterDate: new Date().toISOString(),
+          balanceOutstanding: account.balanceOutstanding,
+          confirmationDate: letterDate.substring(0, 10),
+          letterDate,
           status: 'GENERATED',
           responseReceived: false,
         };
 
         await INSERT.into(AuditorConfirmationLetter).entries(letter);
+        letters.push(letter);
 
         // Trigger email notification
         try {
@@ -256,12 +261,45 @@ module.exports = cds.service.impl(async function () {
       }
     }
 
+    // Generate PDF for each letter (best-effort — wrapped in try/catch)
+    try {
+      const PDFDocument = require('pdfkit');
+      for (const letter of letters) {
+        const doc = new PDFDocument({ size: 'A4', margin: 50 });
+        const chunks = [];
+        doc.on('data', chunk => chunks.push(chunk));
+
+        // MOCK: basic PDF template. Production may use SAP Forms service.
+        doc.fontSize(16).text('SAINS - Syarikat Air Negeri Sembilan', { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(12).text('AUDITOR BALANCE CONFIRMATION REQUEST', { align: 'center' });
+        doc.moveDown(2);
+        doc.fontSize(10)
+          .text(`Date: ${new Date().toISOString().substring(0, 10)}`)
+          .text(`Account Number: ${letter.accountNumber}`)
+          .text(`Account Name: ${letter.accountName}`)
+          .moveDown()
+          .text(`Balance as at ${letter.confirmationDate}: RM ${Number(letter.balanceOutstanding || 0).toFixed(2)}`)
+          .moveDown(2)
+          .text('Please confirm the above balance by signing below and returning this letter.')
+          .moveDown(3)
+          .text('____________________________')
+          .text('Signature & Company Stamp');
+
+        doc.end();
+        await new Promise(resolve => doc.on('end', resolve));
+        letter.pdfContent = Buffer.concat(chunks).toString('base64');
+      }
+    } catch (pdfErr) {
+      logger.warn(`PDF generation failed (falling back to text-only): ${pdfErr.message}`);
+    }
+
     await logSystemAction('AUDITOR_LETTERS_GENERATED', 'AuditorConfirmationLetter', null, {
       auditYear, sampleSize, minBalance, generated,
     });
 
     logger.info(`Auditor confirmation letters generated: ${generated} of ${sampleSize} requested`);
-    return { generated };
+    return { generated, letters };
   });
 
   // ── JOB TRIGGER ACTIONS ─────────────────────────────────────────────
