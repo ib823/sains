@@ -1,0 +1,20 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sains.ar.iwrsintegration",
+    "type": "application",
+    "title": "iWRS Integration Monitor",
+    "dataSources": {
+      "mainService": {
+        "uri": "/integration/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui5": {
+    "models": {
+      "": { "dataSource": "mainService" }
+    }
+  }
+}

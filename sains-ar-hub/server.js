@@ -38,11 +38,23 @@ if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres
 
 cds.on('bootstrap', (app) => {
   // Health check endpoint
-  app.get('/health', (_req, res) => {
-    res.json({
-      status: 'ok',
+  app.get('/health', async (_req, res) => {
+    let dbOk = false;
+    try {
+      const db = await cds.connect.to('db');
+      await db.run('SELECT 1 AS ok FROM DUMMY').catch(() =>
+        db.run(SELECT.one.from('sains.ar.AccountType').limit(1))
+      );
+      dbOk = true;
+    } catch { /* DB not reachable */ }
+
+    const status = dbOk ? 'ok' : 'degraded';
+    const code = dbOk ? 200 : 503;
+    res.status(code).json({
+      status,
       timestamp: new Date().toISOString(),
       profile: process.env.CDS_ENV || 'development',
+      db: dbOk ? 'connected' : 'unreachable',
       services: Object.keys(cds.services || {}).filter(s => !s.startsWith('cds.')),
     });
   });

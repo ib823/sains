@@ -64,6 +64,9 @@ async function runNightlyDunningJob(date = new Date()) {
       if (r.escalated) totalEscalated++;
       if (r.shouldReset) totalReset++;
     }
+
+    // Memory management: hint GC between large batches
+    if (typeof global.gc === 'function') global.gc();
   }
 
   logger.info(`Dunning complete: ${totalProcessed} processed, ${totalEscalated} escalated, ${totalReset} reset, ${totalErrors} errors`);

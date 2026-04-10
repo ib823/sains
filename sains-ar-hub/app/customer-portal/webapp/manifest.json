@@ -1,0 +1,20 @@
+{
+  "_version": "1.65.0",
+  "sap.app": {
+    "id": "sains.ar.customerportal",
+    "type": "application",
+    "title": "Customer Portal",
+    "dataSources": {
+      "mainService": {
+        "uri": "/portal/",
+        "type": "OData",
+        "settings": { "odataVersion": "4.0" }
+      }
+    }
+  },
+  "sap.ui5": {
+    "models": {
+      "": { "dataSource": "mainService" }
+    }
+  }
+}

@@ -44,6 +44,14 @@ module.exports = (srv) => {
     if (deposit.status !== 'REFUND_PENDING')
       return req.error(400, 'Deposit is not pending refund approval');
 
+    // High-value refund requires additional confirmation
+    if (Number(deposit.amount) > 5000) {
+      const confirmCode = req.data.confirmationCode;
+      if (!confirmCode || confirmCode !== 'CONFIRM') {
+        return req.error(400, 'Refund > RM 5,000 requires confirmation. Pass confirmationCode: "CONFIRM" to proceed. MOCK: production uses XSUAA step-up auth.');
+      }
+    }
+
     await db.run(UPDATE('sains.ar.DepositRecord').set({
       status: DEPOSIT_STATUS.REFUNDED,
       refundDate: new Date().toISOString().split('T')[0],

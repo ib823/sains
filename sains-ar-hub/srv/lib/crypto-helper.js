@@ -67,4 +67,23 @@ function maskICNumber() {
   return 'XXXXXX-XX-XXXX';
 }
 
-module.exports = { encryptICNumber, decryptICNumber, maskICNumber };
+/**
+ * Encrypt a bank account number using the same AES-256-CBC approach as IC numbers.
+ * @param {string} plaintext - raw bank account number
+ * @returns {Promise<string>} base64-encoded encrypted value
+ */
+async function encryptBankAccount(plaintext) {
+  // Reuse the same encryption mechanism as IC numbers
+  return encryptICNumber(plaintext);
+}
+
+/**
+ * Decrypt a bank account number.
+ * @param {string} ciphertext - base64-encoded encrypted value
+ * @returns {Promise<string>} plaintext bank account number
+ */
+async function decryptBankAccount(ciphertext) {
+  return decryptICNumber(ciphertext);
+}
+
+module.exports = { encryptICNumber, decryptICNumber, maskICNumber, encryptBankAccount, decryptBankAccount };

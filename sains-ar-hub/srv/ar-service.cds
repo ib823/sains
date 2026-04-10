@@ -180,7 +180,7 @@ service ARService @(path:'/ar') {
     ) returns Boolean;
 
     @(requires:['FinanceSupervisor','FinanceManager'])
-    action approveRefund() returns Boolean;
+    action approveRefund(confirmationCode: String(20)) returns Boolean;
 
     @(requires:['FinanceSupervisor','FinanceManager'])
     action applyToBalance(reason: String(500)) returns Boolean;

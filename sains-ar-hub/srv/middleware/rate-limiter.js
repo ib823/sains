@@ -7,6 +7,7 @@ const noop = (req, res, next) => next();
 
 let customerPortalLimiter = noop;
 let webhookLimiter = noop;
+let iwrsInboundLimiter = noop;
 
 try {
   const rateLimit = require('express-rate-limit');
@@ -28,8 +29,16 @@ try {
     keyGenerator: (req) => req.ip,
     message: { error: 'Webhook rate limit exceeded', code: 429 },
   });
+
+  iwrsInboundLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 100, // 100 requests per minute per IP
+    message: { error: 'Too many iWRS events — rate limited. Max 100/min.' },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 } catch {
   // express-rate-limit not installed — noop middleware already assigned
 }
 
-module.exports = { customerPortalLimiter, webhookLimiter };
+module.exports = { customerPortalLimiter, webhookLimiter, iwrsInboundLimiter };

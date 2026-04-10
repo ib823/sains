@@ -238,6 +238,30 @@ module.exports = cds.service.impl(async function() {
     return true;
   });
 
+  // ── CONFIG CHANGE AUDIT TRAIL ─────────────────────────────────────────
+  for (const entity of ['GLAccountMappings', 'ChargeTypes', 'TariffBands', 'DunningProcedures']) {
+    srv.before('UPDATE', entity, async (req) => {
+      const db = await cds.connect.to('db');
+      const entityMap = {
+        GLAccountMappings: 'sains.ar.GLAccountMapping',
+        ChargeTypes: 'sains.ar.ChargeType',
+        TariffBands: 'sains.ar.TariffBand',
+        DunningProcedures: 'sains.ar.DunningProcedure',
+      };
+      const ID = req.params?.[0]?.ID ?? req.params?.[0];
+      if (ID) {
+        const before = await db.run(SELECT.one.from(entityMap[entity]).where({ ID }));
+        req._auditBeforeState = before;
+      }
+    });
+    srv.after('UPDATE', entity, async (data, req) => {
+      if (req._auditBeforeState) {
+        await logAction(req, `UPDATE_CONFIG_${entity.toUpperCase()}`, entity, data.ID || req.params?.[0],
+          req._auditBeforeState, data);
+      }
+    });
+  }
+
   // ── Phase 3: Period close step notification (Scenario 11.6) ─────────────
   srv.after('UPDATE', 'PeriodCloseSteps', async (data, req) => {
     if (data.status === 'DUE' || data.status === 'PENDING') {

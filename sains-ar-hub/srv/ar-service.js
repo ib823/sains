@@ -20,7 +20,7 @@ const glPostingHandler   = require('./handlers/gl-posting');
 const customerAccountHandler = require('./handlers/customer-account');
 const paymentPlanHandler = require('./handlers/payment-plan');
 const authMiddleware = require('./auth-middleware');
-const { customerPortalLimiter, webhookLimiter } = require('./middleware/rate-limiter');
+const { customerPortalLimiter, webhookLimiter, iwrsInboundLimiter } = require('./middleware/rate-limiter');
 const { validateEnvironment } = require('./lib/env-validation');
 
 // Validate environment on module load (before any requests)
@@ -41,6 +41,9 @@ cds.on('bootstrap', app => {
   app.use('/portal/', customerPortalLimiter);
   app.use('/payment/fpx/ipn', webhookLimiter);
   app.use('/payment/processWebhookNotification', webhookLimiter);
+  app.use('/integration/receiveAccountEvent', iwrsInboundLimiter);
+  app.use('/integration/receiveInvoiceEvent', iwrsInboundLimiter);
+  app.use('/integration/receivePaymentEvent', iwrsInboundLimiter);
 });
 
 module.exports = cds.service.impl(async function() {

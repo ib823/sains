@@ -9,3 +9,6 @@ gen/
 *.sqlite-shm
 *.sqlite-wal
 .env.pg
+.env.local
+*.pem
+*.key
