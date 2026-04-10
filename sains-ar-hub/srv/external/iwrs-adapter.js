@@ -7,6 +7,7 @@ const cds = require('@sap/cds');
 const axios = require('axios');
 const dayjs = require('dayjs');
 const { logSystemAction } = require('../lib/audit-logger');
+const { VALID_BRANCH_CODES } = require('../lib/constants');
 
 const logger = cds.log('iwrs-adapter');
 
@@ -163,15 +164,13 @@ async function _createAccountFromiWRS(db, payload) {
   const accountNumber = payload.acc_no || payload.accountNumber;
   if (!accountNumber) throw new Error('iWRS payload missing account number');
 
-  // Check for duplicate (idempotency)
+  // Idempotent: if account already exists, return it
   const existing = await db.run(
-    SELECT.one.from('sains.ar.CustomerAccount')
-      .columns('ID')
-      .where({ accountNumber })
+    SELECT.one.from('sains.ar.CustomerAccount').where({ accountNumber })
   );
   if (existing) {
-    logger.warn(`iWRS ACCOUNT_CREATED: account ${accountNumber} already exists — treating as update`);
-    return await _updateAccountFromiWRS(db, accountNumber, payload);
+    logger.info(`Account ${accountNumber} already exists (ID: ${existing.ID}) — returning existing`);
+    return existing.ID;
   }
 
   // Map account type code
@@ -232,7 +231,14 @@ async function _createAccountFromiWRS(db, payload) {
     primaryPhone: payload.phone_1 || payload.primaryPhone || '',
     secondaryPhone: payload.phone_2 || payload.secondaryPhone || '',
     emailAddress: payload.email || payload.emailAddress || '',
-    branchCode: payload.branch_code || payload.branchCode || '', // MOCK: branchCode fallback — confirm iWRS field name (branch_code / branchCode) with vendor
+    branchCode: (() => {
+      const bc = payload.branch_code || payload.branchCode || '';
+      if (bc && !VALID_BRANCH_CODES.includes(bc)) {
+        logger.warn(`Unknown branch code ${bc} for account ${accountNumber} — defaulting to SRB`);
+        return 'SRB';
+      }
+      return bc || 'SRB';
+    })(),
     tariffBand_code: payload.tariff_code || payload.tariffCode || '', // MOCK: tariffBand_code fallback — confirm iWRS field name (tariff_code / tariffCode) with vendor
     meterReference: payload.meter_ref || payload.meterReference || '',
     connectionSizeMM: parseInt(payload.pipe_size_mm || payload.connectionSizeMM || '15'),
@@ -256,6 +262,26 @@ async function _createAccountFromiWRS(db, payload) {
     afterState: { accountNumber, sourceSystem: 'iWRS', eventType: 'ACCOUNT_CREATED' },
     sourceSystem: 'iWRS',
   });
+
+  // Resolve any suspended invoice events for this account
+  try {
+    const suspended = await db.run(
+      SELECT.from('sains.ar.integration.iWRSEventLog')
+        .where({ accountNumber, processingStatus: 'SUSPENSE', eventType: 'INVOICE_GENERATED' })
+        .limit(100)
+    );
+    for (const evt of suspended) {
+      try {
+        const evtPayload = JSON.parse(evt.rawPayload);
+        await processInvoiceEvent(evt.iWRSReference, accountNumber, evtPayload);
+        logger.info(`Resolved suspended invoice ${evt.iWRSReference} for new account ${accountNumber}`);
+      } catch (err) {
+        logger.error(`Failed to resolve suspended invoice ${evt.iWRSReference}: ${err.message}`);
+      }
+    }
+  } catch (err) {
+    logger.error(`Suspended invoice resolution failed for ${accountNumber}: ${err.message}`);
+  }
 
   logger.info(`iWRS: Account ${accountNumber} created — AR Hub ID ${accountID}`);
   return accountID;
@@ -466,18 +492,15 @@ async function processInvoiceEvent(iWRSRef, accountNumber, payload) {
         .where({ accountNumber })
     );
     if (!account) {
-      // Account not yet in AR Hub — put invoice in suspense
+      logger.warn(`Invoice event ${iWRSRef}: account ${accountNumber} not found — routing to suspense`);
+      // Store as SUSPENSE for later resolution when account arrives
       await db.run(UPDATE('sains.ar.integration.iWRSEventLog').set({
         processingStatus: 'SUSPENSE',
         processingError: `Account ${accountNumber} not found in AR Hub`,
         processingDurationMs: Date.now() - startTime,
         processedAt: new Date().toISOString(),
       }).where({ ID: eventID }));
-      return {
-        success: false,
-        arHubInvoiceID: null,
-        message: `Account ${accountNumber} not in AR Hub — invoice in suspense`,
-      };
+      return { success: false, arHubInvoiceID: null, message: `Account ${accountNumber} not found — invoice suspended` };
     }
 
     const totalAmount = Number(payload.total_amount || payload.totalAmount || 0);

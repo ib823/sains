@@ -2,6 +2,7 @@
 
 const Decimal = require('decimal.js');
 const { CLEARING_TYPE, INVOICE_STATUS, PAYMENT_STATUS, OVERPAYMENT_NOTIFY_THRESHOLD } = require('./constants');
+const { validateTransition } = require('./account-state-machine');
 
 function allocatePayment(payment, invoices) {
   const clearings = [];
@@ -119,6 +120,14 @@ async function checkAndTriggerReconnection(db, accountID, paymentReference) {
   if (Number(account.balanceOutstanding) > 0) return;
 
   const logger = cds.log('clearing-engine');
+
+  // Validate transition before attempting update
+  try {
+    validateTransition(account.accountStatus, 'ACTIVE');
+  } catch (err) {
+    logger.warn(`Reconnection state machine rejected for ${account.accountNumber}: ${err.message}`);
+    return;
+  }
 
   // ── ATOMIC STATUS TRANSITION ─────────────────────────────────────────────
   // Attempt to move from TEMP_DISCONNECTED → ACTIVE atomically in a single UPDATE.

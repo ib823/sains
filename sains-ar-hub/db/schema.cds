@@ -129,6 +129,7 @@ entity InvoiceSequenceCounter {
 
 // ─── CUSTOMER ACCOUNT ──────────────────────────────────────────────────────
 
+@assert.unique: { accountNumber: [ accountNumber ] }
 entity CustomerAccount : cuid, managed {
 
   accountNumber     : AccountNumber not null;

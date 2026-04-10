@@ -71,7 +71,10 @@ const ADJUSTMENT_TYPE = Object.freeze({
 });
 
 const WRITEOFF_THRESHOLDS = Object.freeze({
-  SUPERVISOR:50.00, MANAGER:500.00, CFO:5000.00, BOARD:20000.00,
+  SUPERVISOR: 50.00,  // MOCK: confirm with SAINS Finance during Blueprint
+  MANAGER: 500.00,    // MOCK: confirm with SAINS Finance during Blueprint
+  CFO: 5000.00,       // MOCK: confirm with SAINS Finance during Blueprint
+  BOARD: 20000.00,    // MOCK: confirm with SAINS Finance during Blueprint
 });
 
 const FRAUD_ALERT_PATTERN = Object.freeze({
@@ -152,6 +155,11 @@ const FRAUD_THRESHOLDS = Object.freeze({
   THIRD_PARTY_MULTI_ACCOUNT: 5,
 });
 
+const VALID_BRANCH_CODES = Object.freeze([
+  'SRB', 'NLI', 'PDK', 'JLB', 'JMP', 'KPH', 'RMB', 'GMC', 'HQ',
+  'SEREMBAN', 'NILAI', 'PORT_DICKSON', 'JELEBU', 'JEMPOL', 'KUALA_PILAH', 'REMBAU', 'GEMENCHEH',
+]); // MOCK: confirm complete branch code list with SAINS Operations
+
 const ADJUSTMENT_GL_IMMEDIATE = process.env.ADJUSTMENT_GL_IMMEDIATE === 'true';
 
 const SUSPENSE_GL_ACCOUNT = '125000'; // MOCK: confirm suspense clearing GL with SAINS Finance
@@ -171,4 +179,5 @@ module.exports = {
   SUSPENSE_GL_ACCOUNT, PAAB_LIABILITY_GL, PAAB_PAYABLE_GL,
   PROVISION_GL, BAD_DEBT_EXPENSE_GL,
   ADJUSTMENT_GL_IMMEDIATE,
+  VALID_BRANCH_CODES,
 };

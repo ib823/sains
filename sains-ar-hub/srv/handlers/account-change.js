@@ -5,6 +5,8 @@ const { v4: uuidv4 } = require('uuid');
 const { logAction } = require('../lib/audit-logger');
 const { sendEmail } = require('../external/notification-service');
 
+const logger = cds.log('account-change');
+
 const RESTRICTED_FIELDS = [
   'legalName', 'idNumber', 'accountType_code', 'tariffBand_code',
   'serviceAddress1', 'serviceAddress2', 'serviceCity', 'serviceState', 'servicePostcode',
@@ -65,6 +67,26 @@ module.exports = (srv) => {
 
     await logAction(req, 'APPROVE_CHANGE_REQUEST', 'AccountChangeRequest', ID,
       { status: 'PENDING' }, { status: 'APPLIED', fieldChanged: cr.fieldChanged }, cr.account_ID);
+
+    // If accountType changed, create a system note about tariff reclassification
+    if (cr.fieldChanged === 'accountType_code') {
+      try {
+        await db.run(INSERT.into('sains.ar.AccountNote').entries({
+          ID: uuidv4(),
+          account_ID: cr.account_ID,
+          noteDate: new Date().toISOString().substring(0, 10),
+          noteType: 'SYSTEM',
+          noteText: `Account reclassified from ${cr.oldValue} to ${cr.newValue}. Tariff rebilling may be required for current billing period.`,
+          isInternal: true,
+        }));
+        // MOCK: tariff difference calculation uses simplified flat-rate assumption.
+        // Full tiered tariff recalculation requires tariff engine (Batch 9).
+        logger.info(`Account ${cr.account_ID} reclassified: ${cr.oldValue} → ${cr.newValue}`);
+      } catch (err) {
+        logger.warn(`Tariff reclassification note failed: ${err.message}`);
+      }
+    }
+
     return true;
   });
 

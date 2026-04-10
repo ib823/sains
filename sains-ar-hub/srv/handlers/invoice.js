@@ -10,6 +10,7 @@ const {
   INVOICE_STATUS, INVOICE_TYPE, SOURCE_SYSTEM,
   EINVOICE_CANCEL_WINDOW_HOURS,
 } = require('../lib/constants');
+const { validateInvoiceTransition } = require('../lib/invoice-state-machine');
 
 module.exports = (srv) => {
 
@@ -64,6 +65,22 @@ module.exports = (srv) => {
     if (!invoice.amountCleared) invoice.amountCleared = 0;
     if (!invoice.amountOutstanding) invoice.amountOutstanding = invoice.totalAmount;
     if (!invoice.sourceSystem) invoice.sourceSystem = SOURCE_SYSTEM.BTP_INTERNAL;
+
+    // Flag partial period billing
+    if (invoice.account_ID) {
+      const acctForPartial = await db.run(
+        SELECT.one.from('sains.ar.CustomerAccount').columns('accountOpenDate').where({ ID: invoice.account_ID })
+      );
+      if (acctForPartial?.accountOpenDate && invoice.billingPeriodFrom && invoice.billingPeriodTo) {
+        const openDate = new Date(acctForPartial.accountOpenDate);
+        const periodFrom = new Date(invoice.billingPeriodFrom);
+        const periodTo = new Date(invoice.billingPeriodTo);
+        if (openDate > periodFrom && openDate <= periodTo) {
+          invoice.isPartialPeriod = true;
+          // MOCK: partial period flag is set but pro-rata calculation requires tariff engine
+        }
+      }
+    }
   });
 
   // ── AFTER CREATE: balance update, meter history ───────────────────────
@@ -102,6 +119,29 @@ module.exports = (srv) => {
 
     await logAction(req, 'CREATE_INVOICE', 'Invoice', invoice.ID, null, invoice, invoice.account_ID)
       .catch(err => invoiceLogger.error(`Audit log failed for invoice ${invoice.ID}: ${err.message}`));
+
+    // Alert on estimated bills
+    if (invoice.meterReadType === 'ESTIMATED') {
+      try {
+        const { sendSystemAlert } = require('../external/notification-service');
+        await sendSystemAlert({
+          severity: 'LOW',
+          subject: `Estimated bill for account ${invoice.account_ID}`,
+          body: `Invoice ${invoice.invoiceNumber} uses estimated meter reading for period ${invoice.billingPeriodFrom} to ${invoice.billingPeriodTo}. Manual read recommended.`,
+        });
+        // Create account note
+        await db.run(INSERT.into('sains.ar.AccountNote').entries({
+          ID: cds.utils.uuid(),
+          account_ID: invoice.account_ID,
+          noteDate: new Date().toISOString().substring(0, 10),
+          noteType: 'SYSTEM',
+          noteText: `Estimated bill ${invoice.invoiceNumber} generated for period ${invoice.billingPeriodFrom}–${invoice.billingPeriodTo}. Manual meter read recommended.`,
+          isInternal: true,
+        }));
+      } catch (err) {
+        invoiceLogger.warn(`Estimated bill alert failed: ${err.message}`);
+      }
+    }
   });
 
   // ── BEFORE DELETE: block ──────────────────────────────────────────────
@@ -121,6 +161,12 @@ module.exports = (srv) => {
       return req.error(400, 'Invoice is already reversed');
     if (invoice.status === INVOICE_STATUS.CLEARED)
       return req.error(400, 'Cannot reverse a fully cleared invoice — reverse payments first');
+
+    try {
+      validateInvoiceTransition(invoice.status, INVOICE_STATUS.REVERSED);
+    } catch (err) {
+      return req.error(400, err.message);
+    }
 
     const beforeState = createStateSnapshot(invoice);
 

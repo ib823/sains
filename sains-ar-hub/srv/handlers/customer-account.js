@@ -5,6 +5,7 @@ const { v4: uuidv4 } = require('uuid');
 const { encryptICNumber, decryptICNumber, maskICNumber } = require('../lib/crypto-helper');
 const { logAction } = require('../lib/audit-logger');
 const { ACCOUNT_STATUS, INVOICE_STATUS } = require('../lib/constants');
+const { validateTransition } = require('../lib/account-state-machine');
 const { sendEmail } = require('../external/notification-service');
 
 module.exports = (srv) => {
@@ -37,6 +38,12 @@ module.exports = (srv) => {
     if (activePlans.length > 0)
       return req.error(400, 'Cannot close account with active payment plans');
 
+    try {
+      validateTransition(account.accountStatus, 'CLOSED');
+    } catch (err) {
+      return req.error(400, err.message);
+    }
+
     await db.run(UPDATE('sains.ar.CustomerAccount').set({
       accountStatus: ACCOUNT_STATUS.CLOSED,
       accountCloseDate: new Date().toISOString().split('T')[0],
@@ -57,6 +64,12 @@ module.exports = (srv) => {
     if (!account) return req.error(404, 'Account not found');
     if (account.accountStatus !== ACCOUNT_STATUS.VOID)
       return req.error(400, 'Only VOID accounts can be activated');
+
+    try {
+      validateTransition(account.accountStatus, 'ACTIVE');
+    } catch (err) {
+      return req.error(400, err.message);
+    }
 
     await db.run(UPDATE('sains.ar.CustomerAccount').set({
       accountStatus: ACCOUNT_STATUS.ACTIVE,
@@ -155,6 +168,15 @@ module.exports = (srv) => {
     const { reconnectDate } = req.data;
     const db = await cds.connect.to('db');
 
+    const accountForDisc = await db.run(SELECT.one.from('sains.ar.CustomerAccount').columns('accountStatus').where({ ID }));
+    if (accountForDisc) {
+      try {
+        validateTransition(accountForDisc.accountStatus, 'TEMP_DISCONNECTED');
+      } catch (err) {
+        return req.error(400, err.message);
+      }
+    }
+
     await db.run(UPDATE('sains.ar.CustomerAccount').set({
       isVoluntaryDisconnected: true,
       voluntaryDisconnectedDate: new Date().toISOString().split('T')[0],
@@ -171,6 +193,15 @@ module.exports = (srv) => {
   srv.on('voluntaryReconnect', 'CustomerAccounts', async (req) => {
     const ID = req.params[0]?.ID ?? req.params[0];
     const db = await cds.connect.to('db');
+
+    const accountForReconn = await db.run(SELECT.one.from('sains.ar.CustomerAccount').columns('accountStatus').where({ ID }));
+    if (accountForReconn) {
+      try {
+        validateTransition(accountForReconn.accountStatus, 'ACTIVE');
+      } catch (err) {
+        return req.error(400, err.message);
+      }
+    }
 
     await db.run(UPDATE('sains.ar.CustomerAccount').set({
       isVoluntaryDisconnected: false,
