@@ -5,6 +5,7 @@ const dayjs = require('dayjs');
 const { runSegmentationBatch, runEarlyInterventionScan } = require('./handlers/segmentation');
 const { isPTPBroken } = require('./lib/intelligent-dunning-engine');
 const { logAction, logSystemAction } = require('./lib/audit-logger');
+const { VULNERABILITY_CATEGORIES } = require('./lib/constants');
 
 const logger = cds.log('intelligent-collections-service');
 
@@ -52,6 +53,12 @@ module.exports = cds.service.impl(async function () {
   });
 
   // ── VULNERABILITY RECORDS ───────────────────────────────────────────
+
+  this.before('CREATE', 'VulnerabilityRecords', (req) => {
+    if (req.data.category && !VULNERABILITY_CATEGORIES.includes(req.data.category)) {
+      return req.error(400, `Invalid vulnerability type: ${req.data.category}. Allowed: ${VULNERABILITY_CATEGORIES.join(', ')}`);
+    }
+  });
 
   this.on('deactivateRecord', 'VulnerabilityRecords', async (req) => {
     const { ID } = req.params[0];

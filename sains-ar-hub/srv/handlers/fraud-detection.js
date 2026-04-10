@@ -8,6 +8,17 @@ const { sendSystemAlert } = require('../external/notification-service');
 
 const logger = cds.log('fraud-detection');
 
+/**
+ * Get assignee for fraud alert based on severity.
+ * MOCK: In production, queries XSUAA for actual users in role.
+ * For POC, returns role name as placeholder identifier.
+ */
+function _getAssigneeByRole(severity) {
+  // MOCK: production queries XSUAA user assignments
+  if (severity === 'HIGH') return 'ROLE:FinanceManager';
+  return 'ROLE:FinanceSupervisor';
+}
+
 async function checkFraudPatterns(pattern, data, req) {
   try {
     const db = await cds.connect.to('db');
@@ -57,9 +68,7 @@ async function checkFraudPatterns(pattern, data, req) {
         description = `Unclassified fraud pattern: ${pattern}`;
     }
 
-    const assignedTo = severity === 'HIGH'
-      ? 'ROLE:FinanceManager' // MOCK: production uses XSUAA role-based assignment
-      : 'ROLE:FinanceSupervisor'; // MOCK: production uses XSUAA role-based assignment
+    const assignedTo = _getAssigneeByRole(severity);
 
     await db.run(INSERT.into('sains.ar.FraudAlert').entries({
       ID: uuidv4(),
@@ -139,4 +148,85 @@ function _registerHandlers(srv) {
   });
 }
 
-module.exports = { checkFraudPatterns, _registerHandlers };
+/**
+ * Daily proactive scan for fraud patterns that require batch analysis.
+ * Runs at 03:00 MYT daily.
+ */
+async function runProactiveFraudScan() {
+  const db = await cds.connect.to('db');
+  let alertsCreated = 0;
+
+  // Pattern 1: REFUND_NO_BILLING — deposit refunded but no billing in 6+ months
+  const refunds = await db.run(
+    SELECT.from('sains.ar.DepositRecord')
+      .columns('ID', 'account_ID', 'amount')
+      .where({ status: 'REFUNDED' })
+  );
+  for (const ref of refunds) {
+    const dayjs = require('dayjs');
+    const sixMonthsAgo = dayjs().subtract(6, 'month').format('YYYY-MM-DD');
+    const recentInvoice = await db.run(
+      SELECT.one.from('sains.ar.Invoice')
+        .where({ account_ID: ref.account_ID, invoiceDate: { '>=': sixMonthsAgo } })
+    );
+    if (!recentInvoice) {
+      const existing = await db.run(
+        SELECT.one.from('sains.ar.FraudAlert')
+          .where({ account_ID: ref.account_ID, alertPattern: 'REFUND_NO_BILLING', status: { in: ['OPEN', 'UNDER_REVIEW'] } })
+      );
+      if (!existing) {
+        await db.run(INSERT.into('sains.ar.FraudAlert').entries({
+          ID: uuidv4(),
+          account_ID: ref.account_ID,
+          alertPattern: 'REFUND_NO_BILLING',
+          alertSeverity: 'MEDIUM',
+          alertDescription: `Deposit RM ${ref.amount} refunded but no billing activity in 6+ months`,
+          triggeredByAction: 'PROACTIVE_SCAN',
+          triggeredByUser: 'SYSTEM',
+          status: 'OPEN',
+          assignedTo: _getAssigneeByRole('MEDIUM'),
+        }));
+        alertsCreated++;
+      }
+    }
+  }
+
+  // Pattern 2: GHOST_ACCOUNT_PAYMENT — payment received for VOID/CLOSED account
+  const ghostPayments = await db.run(
+    SELECT.from('sains.ar.Payment')
+      .columns('ID', 'account_ID', 'amount', 'paymentDate')
+      .where({ status: { '!=': 'REVERSED' } })
+      .limit(5000)
+  );
+  for (const pay of ghostPayments) {
+    const acct = await db.run(
+      SELECT.one.from('sains.ar.CustomerAccount')
+        .columns('accountStatus').where({ ID: pay.account_ID })
+    );
+    if (acct && (acct.accountStatus === 'VOID' || acct.accountStatus === 'CLOSED')) {
+      const existing = await db.run(
+        SELECT.one.from('sains.ar.FraudAlert')
+          .where({ account_ID: pay.account_ID, alertPattern: 'GHOST_ACCOUNT_PAYMENT', status: { in: ['OPEN', 'UNDER_REVIEW'] } })
+      );
+      if (!existing) {
+        await db.run(INSERT.into('sains.ar.FraudAlert').entries({
+          ID: uuidv4(),
+          account_ID: pay.account_ID,
+          alertPattern: 'GHOST_ACCOUNT_PAYMENT',
+          alertSeverity: 'HIGH',
+          alertDescription: `Payment of RM ${pay.amount} received for ${acct.accountStatus} account`,
+          triggeredByAction: 'PROACTIVE_SCAN',
+          triggeredByUser: 'SYSTEM',
+          status: 'OPEN',
+          assignedTo: _getAssigneeByRole('HIGH'),
+        }));
+        alertsCreated++;
+      }
+    }
+  }
+
+  logger.info(`Proactive fraud scan: ${alertsCreated} new alerts created`);
+  return { alertsCreated };
+}
+
+module.exports = { checkFraudPatterns, runProactiveFraudScan, _registerHandlers };

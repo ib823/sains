@@ -237,7 +237,7 @@ service ARService @(path:'/ar') {
     action approveWriteOff_CFO() returns Boolean;
 
     @(requires:['FinanceManager'])
-    action submitForBoardApproval(notes: String(500)) returns Boolean;
+    action submitForBoardApproval(notes: String(500), boardResolutionRef: String(50)) returns Boolean;
   }
 
   @(requires:['FinanceAdmin','FinanceSupervisor','FinanceManager','Auditor'])
@@ -289,6 +289,11 @@ service ARService @(path:'/ar') {
   @(requires:['SystemProcess','FinanceManager'])
   action triggerPeriodAccrual(year: Integer, month: Integer) returns {
     processed: Integer; accrualTransactions: Integer;
+  };
+
+  @(requires:['SystemProcess'])
+  action triggerProactiveFraudScan() returns {
+    alertsCreated: Integer;
   };
 
   // ── AGENCY FILE PARSER ──────────────────────────────────────────────────

@@ -122,6 +122,24 @@ module.exports = cds.service.impl(async function() {
     }
   });
 
+  // ── DISPUTE SLA + AUTO-ASSIGNMENT ─────────────────────────────────────
+  srv.before('CREATE', 'Disputes', async (req) => {
+    // Set SLA deadline = 14 business days from today
+    const dayjs = require('dayjs');
+    let deadline = dayjs();
+    let businessDays = 0;
+    while (businessDays < 14) {
+      deadline = deadline.add(1, 'day');
+      const dow = deadline.day();
+      if (dow !== 0 && dow !== 6) businessDays++; // skip weekends
+    }
+    req.data.slaDeadlineDate = deadline.format('YYYY-MM-DD');
+
+    // Auto-assign investigator based on dispute type (round-robin by role)
+    // MOCK: production uses XSUAA role-based assignment
+    req.data.assignedTo = req.data.assignedTo || 'ROLE:FinanceSupervisor';
+  });
+
   // ── PTP ACTIONS ───────────────────────────────────────────────────────
   srv.on('markBroken', 'PromisesToPay', async (req) => {
     const ID = req.params[0]?.ID ?? req.params[0];
@@ -204,25 +222,33 @@ module.exports = cds.service.impl(async function() {
   // ── WRITE-OFF BOARD SUBMISSION ────────────────────────────────────────
   srv.on('submitForBoardApproval', 'WriteOffs', async (req) => {
     const ID = req.params[0]?.ID ?? req.params[0];
-    const { notes } = req.data;
+    const { notes, boardResolutionRef } = req.data;
     const db = await cds.connect.to('db');
 
     const wo = await db.run(SELECT.one.from('sains.ar.WriteOff').where({ ID }));
     if (!wo) return req.error(404, 'Write-off not found');
 
-    await db.run(UPDATE('sains.ar.WriteOff').set({
+    const updateFields = {
       approvalLevel: 'BOARD',
       collectionHistory: (wo.collectionHistory || '') + `\n\nBoard submission notes: ${notes}`,
-    }).where({ ID }));
+    };
+    if (boardResolutionRef) updateFields.boardResolutionRef = boardResolutionRef;
+
+    await db.run(UPDATE('sains.ar.WriteOff').set(updateFields).where({ ID }));
 
     await logAction(req, 'SUBMIT_FOR_BOARD', 'WriteOff', ID, wo,
-      { approvalLevel: 'BOARD', notes }, wo.account_ID);
+      { approvalLevel: 'BOARD', notes, boardResolutionRef }, wo.account_ID);
     return true;
   });
 
   // ── PTP COMPLIANCE CHECK ──────────────────────────────────────────────
   srv.on('triggerPTPComplianceCheck', async (req) => {
     return await runPTPComplianceCheck();
+  });
+
+  // ── PROACTIVE FRAUD SCAN ──────────────────────────────────────────────
+  srv.on('triggerProactiveFraudScan', async (req) => {
+    return await fraudHandler.runProactiveFraudScan();
   });
 
   // ── POSTAL RETURN TRACKING (CHANGE 8) ─────────────────────────────────
@@ -392,6 +418,10 @@ async function _registerScheduledJobs() {
     { name: 'sains-ar-bayaran-sftp', description: 'Daily Bayaran Pukal SFTP file download',
       schedules: [{ cron: '0 2 * * *' }],
       httpMethod: 'POST', action: `${appUrl}/payment/processBayaranPukalSFTP` },
+    // Batch 7: Proactive fraud scan (03:00 MYT daily)
+    { name: 'sains-ar-proactive-fraud-scan', description: 'Daily proactive fraud pattern scan',
+      schedules: [{ cron: '0 3 * * *', description: '3:00 AM MYT' }],
+      httpMethod: 'POST', action: `${appUrl}/ar/triggerProactiveFraudScan` },
   ];
 
   for (const job of jobs) {

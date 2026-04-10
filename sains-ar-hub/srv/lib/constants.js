@@ -84,7 +84,20 @@ const FRAUD_ALERT_PATTERN = Object.freeze({
   ADDRESS_PAYMENT_CHANGE:'ADDRESS_PAYMENT_CHANGE', SELF_PAYMENT:'SELF_PAYMENT',
   DEPOSIT_NO_CLOSURE:'DEPOSIT_NO_CLOSURE',
   BULK_WRITEOFF_SAME_USER:'BULK_WRITEOFF_SAME_USER', AGENT_BATCH_ANOMALY:'AGENT_BATCH_ANOMALY',
+  UNUSUAL_PAYMENT_PATTERN:'UNUSUAL_PAYMENT_PATTERN', // Payment > 5× account average
+  RAPID_ACCOUNT_CHANGES:'RAPID_ACCOUNT_CHANGES',     // > 3 change requests in 7 days
+  GHOST_ACCOUNT_PAYMENT:'GHOST_ACCOUNT_PAYMENT',     // Payment to VOID/CLOSED account
 });
+
+const VULNERABILITY_CATEGORIES = Object.freeze([
+  'OKU',                    // Orang Kurang Upaya (disabled)
+  'WARGA_EMAS',             // Senior citizen
+  'IBU_TUNGGAL',            // Single mother
+  'BERPENDAPATAN_RENDAH',   // Low income (B40)
+  'KANAK_KANAK',            // Child-headed household
+  'PENYAKIT_KRONIK',        // Chronic illness
+  'OTHER',
+]);
 
 const OVERPAYMENT_NOTIFY_THRESHOLD = 50.00;
 const GL_POSTING_MAX_RETRIES = 3;
@@ -180,4 +193,5 @@ module.exports = {
   PROVISION_GL, BAD_DEBT_EXPENSE_GL,
   ADJUSTMENT_GL_IMMEDIATE,
   VALID_BRANCH_CODES,
+  VULNERABILITY_CATEGORIES,
 };
