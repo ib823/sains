@@ -5,6 +5,7 @@ const dayjs = require('dayjs');
 const { Decimal } = require('decimal.js');
 const { logSystemAction } = require('./audit-logger');
 const { buildDailySummaryBatch, buildJournalEntryPayload } = require('./gl-builder');
+const { SAP_CORE, PROVISION_GL, BAD_DEBT_EXPENSE_GL } = require('./constants');
 
 const logger = cds.log('advanced-provision-engine');
 
@@ -226,12 +227,12 @@ async function postProvisionToGL(runID, glMappings) {
     referenceDocID: runID,
     // If movement positive: debit BAD_DEBT_EXPENSE, credit PROVISION
     // If movement negative: debit PROVISION, credit BAD_DEBT_EXPENSE
-    overrideDebitGL: netMovement >= 0 ? null : '/* TBC: PROVISION_GL */',
-    overrideCreditGL: netMovement >= 0 ? null : '/* TBC: BAD_DEBT_EXPENSE_GL */',
+    overrideDebitGL: netMovement >= 0 ? null : PROVISION_GL, // MOCK: confirm provision GL account with SAINS Finance during Blueprint
+    overrideCreditGL: netMovement >= 0 ? null : BAD_DEBT_EXPENSE_GL, // MOCK: confirm bad debt expense GL account with SAINS Finance during Blueprint
   }];
 
   const batch = buildDailySummaryBatch(transactions, glMappings, postingDate,
-    '/* TBC: SAP_COMPANY_CODE */');
+    SAP_CORE.COMPANY_CODE);
   batch.headerText = `MFRS9 ECL Provision ${periodYear}-${String(periodMonth).padStart(2,'0')}`;
 
   const payload = buildJournalEntryPayload(batch);

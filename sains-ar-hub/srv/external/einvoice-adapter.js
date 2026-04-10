@@ -65,8 +65,8 @@ function _buildMyInvoisPayload(invoice, account) {
     invoiceDate: invoice.invoiceDate,
     invoiceType: _mapInvoiceTypeCode(invoice.invoiceType),
     currency: 'MYR',
-    supplierTIN: process.env.SAINS_TIN || '/* TBC: SAINS TIN */',
-    supplierSSTNumber: process.env.SAINS_SST_NUMBER || '/* TBC: SAINS SST Number */',
+    supplierTIN: process.env.SAINS_TIN || 'C20654321090', // MOCK: confirm SAINS TIN with Finance during Blueprint
+    supplierSSTNumber: process.env.SAINS_SST_NUMBER || 'W10-2345-67890123', // MOCK: confirm SAINS SST Number with Finance during Blueprint
     supplierName: 'Syarikat Air Negeri Sembilan Sdn Bhd',
     supplierAddress: _buildSAINSAddress(),
     buyerTIN: account.buyerTIN || '',

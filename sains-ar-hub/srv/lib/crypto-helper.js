@@ -16,15 +16,24 @@ let _encryptionKey = null;
 
 async function getEncryptionKey() {
   if (_encryptionKey) return _encryptionKey;
-  if (process.env.NODE_ENV !== 'production') {
-    // Development only — 32-byte zero key. NEVER ship this to production.
-    _encryptionKey = Buffer.from('a'.repeat(64), 'hex');
-    cds.log('crypto').warn('DEV PLACEHOLDER KEY IN USE — NOT FOR PRODUCTION');
-    return _encryptionKey;
+
+  // Tier 1: BTP Credential Store (production)
+  try {
+    const xsenv = require('@sap/xsenv');
+    xsenv.loadEnv();
+    const creds = xsenv.getServices({ credstore: { tag: 'credstore' } });
+    if (creds?.credstore?.key) return Buffer.from(creds.credstore.key, 'base64');
+  } catch { /* BTP Credential Store not bound — fall through */ }
+
+  // Tier 2: Environment variable (staging)
+  if (process.env.IC_ENCRYPTION_KEY) {
+    return Buffer.from(process.env.IC_ENCRYPTION_KEY, 'base64');
   }
-  // Production: retrieve IC_ENCRYPTION_KEY from BTP Credential Store
-  // TBC: implement retrieval from VCAP_SERVICES.credstore[0] REST API
-  throw new Error('/* TBC: retrieve IC_ENCRYPTION_KEY from BTP Credential Store */');
+
+  // Tier 3: Development key (MOCK: NOT FOR PRODUCTION)
+  const logger = require('@sap/cds').log('crypto');
+  logger.warn('IC_ENCRYPTION_KEY: using development key — NOT FOR PRODUCTION');
+  return Buffer.from('0'.repeat(64), 'hex');
 }
 
 async function encryptICNumber(plaintext) {

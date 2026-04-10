@@ -237,7 +237,7 @@ module.exports = cds.service.impl(async function () {
         // Trigger email notification
         try {
           await sendEmail({
-            to: auditorEmail || req.data.auditorEmail || '/* TBC: auditor firm email address */',
+            to: auditorEmail || req.data.auditorEmail || process.env.AUDITOR_EMAIL || 'auditor@sains.com.my', // MOCK: confirm auditor firm email address during Blueprint
             subject: `SAINS - Auditor Confirmation Letter - Account ${account.accountNumber} - Year ${auditYear}`,
             body: `Dear Account Holder,\n\n` +
               `This is a confirmation letter for audit year ${auditYear}.\n` +

@@ -80,7 +80,7 @@ module.exports = (srv) => {
 
     // IC number must appear masked in export data
     await sendEmail({
-      to: '/* TBC: Finance Admin distribution list for postal queue */',
+      to: process.env.POSTAL_DISTRIBUTION_EMAIL || 'finance-admin@sains.com.my', // MOCK: confirm Finance Admin distribution list for postal queue
       subject: `[SAINS AR] Data export requested — ${account.accountNumber}`,
       body: `Data export requested for account ${account.accountNumber}.\n` +
             `Export reference: ${exportRef}\n` +

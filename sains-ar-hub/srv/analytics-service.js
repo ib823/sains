@@ -138,8 +138,9 @@ module.exports = cds.service.impl(async function () {
       return req.error(409, 'Report must be approved before submission to SPAN');
     }
 
-    // TBC: actual SPAN API call — for now log and update status
-    /* TBC: SPAN API endpoint and authentication credentials */
+    // MOCK: SPAN API integration. In production, POST report to SPAN electronic portal.
+    // For now, log submission and update status.
+    logger.info(`SPAN report ${ID} submitted (MOCK — no SPAN API configured)`);
     const submissionRef = `SPAN-${dayjs().format('YYYYMMDD')}-${ID.substring(0, 8)}`;
 
     await UPDATE(SPANKPIReport).set({
@@ -188,7 +189,7 @@ module.exports = cds.service.impl(async function () {
       return { content, fileName, mimeType: 'text/csv' };
     }
 
-    req.error(400, 'Excel format: TBC — use CSV format for now');
+    req.error(400, 'Excel export not yet available — use CSV format. MOCK: add xlsx generation in Phase 3.');
   });
 
   // ── JOB TRIGGER ACTIONS ─────────────────────────────────────────────

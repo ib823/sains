@@ -1,5 +1,8 @@
 'use strict';
 
+// MOCK: field mappings use assumed iWRS naming convention (snake_case).
+// Confirm actual field names with iWRS vendor before production deployment.
+
 const cds = require('@sap/cds');
 const axios = require('axios');
 const dayjs = require('dayjs');
@@ -14,34 +17,34 @@ const logger = cds.log('iwrs-adapter');
 const IWRS_CONFIG = {
   PATTERN_A_BASE_URL:
     process.env.IWRS_API_BASE_URL ||
-    '/* TBC: iWRS REST API base URL — from iWRS vendor after Pattern A engagement */',
+    'https://iwrs-api.sains.com.my/v1', // MOCK: confirm iWRS REST API base URL with iWRS vendor
   PATTERN_A_API_KEY:
     process.env.IWRS_API_KEY ||
-    '/* TBC: iWRS API key — store in BTP Credential Store or HashiCorp Vault */',
+    'iwrs-api-key-replace-before-go-live', // MOCK: confirm iWRS API key with iWRS vendor — store in BTP Credential Store
   PATTERN_B_SFTP_HOST:
-    '/* TBC: iWRS SFTP hostname — confirm with iWRS vendor if Pattern B selected */',
+    'sftp.iwrs.sains.com.my', // MOCK: confirm iWRS SFTP hostname with iWRS vendor if Pattern B selected
   PATTERN_B_SFTP_USER:
-    '/* TBC: iWRS SFTP username */',
+    'sains_ar_sftp', // MOCK: confirm iWRS SFTP username with iWRS vendor
   PATTERN_B_SFTP_KEY_REF:
-    '/* TBC: SSH private key reference in BTP Credential Store / Vault */',
+    'iwrs-sftp-private-key', // MOCK: confirm SSH private key reference in BTP Credential Store with iWRS vendor
   PATTERN_B_DELTA_PATH:
-    '/* TBC: path on iWRS SFTP where delta files are deposited */',
+    '/exports/delta/', // MOCK: confirm path on iWRS SFTP where delta files are deposited
   PATTERN_B_FILE_PATTERN:
-    '/* TBC: file naming pattern e.g. DELTA_ACCOUNTS_YYYYMMDD.csv */',
+    'DELTA_ACCOUNTS_YYYYMMDD.csv', // MOCK: confirm file naming pattern with iWRS vendor
   PATTERN_C_DB_HOST:
-    '/* TBC: iWRS database hostname — only if Pattern C selected as last resort */',
+    'iwrs-db.internal.sains.com.my', // MOCK: confirm iWRS database hostname — only if Pattern C selected as last resort
   PATTERN_C_DB_PORT:
-    '/* TBC: iWRS database port */',
+    '1521', // MOCK: confirm iWRS database port with iWRS vendor
   PATTERN_C_DB_SCHEMA:
-    '/* TBC: iWRS read-only schema name */',
+    'IWRS_READONLY', // MOCK: confirm iWRS read-only schema name with iWRS vendor
   PATTERN_C_DB_USER_REF:
-    '/* TBC: iWRS read-only service account credential reference */',
+    'iwrs-db-readonly-cred', // MOCK: confirm iWRS read-only service account credential reference
+  // MOCK: set IWRS_OUTBOUND_URL=https://iwrs-api.sains.com.my/v1/notifications — confirm endpoint with iWRS vendor
   OUTBOUND_ENDPOINT:
-    process.env.IWRS_OUTBOUND_URL ||
-    '/* TBC: iWRS endpoint to receive AR Hub notifications (disconnection/reconnection) */',
+    process.env.IWRS_OUTBOUND_URL || null,
+  // MOCK: set IWRS_OUTBOUND_API_KEY — confirm outbound API key for iWRS notification endpoint with vendor
   OUTBOUND_API_KEY:
-    process.env.IWRS_OUTBOUND_API_KEY ||
-    '/* TBC: outbound API key for iWRS notification endpoint */',
+    process.env.IWRS_OUTBOUND_API_KEY || null,
   DEFAULT_PATTERN: process.env.IWRS_ACTIVE_PATTERN || 'PATTERN_A',
   REQUEST_TIMEOUT_MS: 30000,
 };
@@ -172,7 +175,7 @@ async function _createAccountFromiWRS(db, payload) {
   }
 
   // Map account type code
-  // /* TBC: Confirm iWRS account type codes with iWRS vendor */
+  // MOCK: iWRS account type codes — assumed mapping, confirm with iWRS vendor before go-live.
   const accTypeMap = {
     'DOM': 'DOM', 'RES': 'DOM', 'R': 'DOM',           // Domestic
     'COM_S': 'COM_S', 'CS': 'COM_S',                   // Small commercial
@@ -229,8 +232,8 @@ async function _createAccountFromiWRS(db, payload) {
     primaryPhone: payload.phone_1 || payload.primaryPhone || '',
     secondaryPhone: payload.phone_2 || payload.secondaryPhone || '',
     emailAddress: payload.email || payload.emailAddress || '',
-    branchCode: payload.branch_code || payload.branchCode || '/* TBC */',
-    tariffBand_code: payload.tariff_code || payload.tariffCode || '/* TBC */',
+    branchCode: payload.branch_code || payload.branchCode || '', // MOCK: branchCode fallback — confirm iWRS field name (branch_code / branchCode) with vendor
+    tariffBand_code: payload.tariff_code || payload.tariffCode || '', // MOCK: tariffBand_code fallback — confirm iWRS field name (tariff_code / tariffCode) with vendor
     meterReference: payload.meter_ref || payload.meterReference || '',
     connectionSizeMM: parseInt(payload.pipe_size_mm || payload.connectionSizeMM || '15'),
     accountOpenDate: payload.open_date || payload.openDate || new Date().toISOString().substring(0, 10),

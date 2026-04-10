@@ -17,19 +17,19 @@ const MYINVOIS_CONFIG = {
   BASE_URL: process.env.MYINVOIS_BASE_URL
     || 'https://api.myinvois.hasil.gov.my',  // Production URL from LHDN SDK
   CLIENT_ID: process.env.MYINVOIS_CLIENT_ID
-    || '/* TBC: SAINS MyInvois Client ID from LHDN MyInvois portal */',
+    || 'SAINS-MYINVOIS-SANDBOX-001', // MOCK: replace with production credentials from LHDN MyInvois registration
   CLIENT_SECRET: process.env.MYINVOIS_CLIENT_SECRET
-    || '/* TBC: SAINS MyInvois Client Secret — store in BTP Credential Store */',
+    || 'mock-secret-replace-on-registration', // MOCK: replace with production credentials from LHDN MyInvois registration
   SAINS_TIN: process.env.SAINS_TIN
-    || '/* TBC: SAINS Tax Identification Number */',
+    || 'C20654321090', // MOCK: replace with production credentials from LHDN MyInvois registration
   SAINS_REGISTRATION_NUMBER: process.env.SAINS_REGISTRATION_NUMBER
-    || '/* TBC: SAINS Company Registration Number */',
+    || '200001234567', // MOCK: replace with production credentials from LHDN MyInvois registration
   SAINS_SST_NUMBER: process.env.SAINS_SST_NUMBER
-    || '/* TBC: SAINS SST Registration Number */',
+    || 'W10-2345-67890123', // MOCK: replace with production credentials from LHDN MyInvois registration
   SAINS_LEGAL_NAME: 'Syarikat Air Negeri Sembilan Sdn Bhd',
   SAINS_ADDRESS: {
-    addressLine0: '/* TBC: SAINS registered address line 1 */',
-    addressLine1: '/* TBC: SAINS registered address line 2 */',
+    addressLine0: 'Wisma SAINS, Jalan Sungai Ujong', // MOCK: replace with production credentials from LHDN MyInvois registration
+    addressLine1: '70000 Seremban, Negeri Sembilan', // MOCK: replace with production credentials from LHDN MyInvois registration
     addressLine2: '',
     postalZone: '70100',
     cityName: 'Seremban',
@@ -37,7 +37,7 @@ const MYINVOIS_CONFIG = {
     countryCode: 'MYS',
     countrySubentityCode: 'MY-NS',
   },
-  CERT_KEYSTORE_REF: '/* TBC: BTP Credential Store key name for SAINS digital certificate */',
+  CERT_KEYSTORE_REF: 'sains-einvoice-signing-cert', // MOCK: replace with production credentials from LHDN MyInvois registration
   // Rate limiting: 100 requests per minute
   RATE_LIMIT_PER_MINUTE: 100,
   MAX_INVOICES_PER_SUBMISSION: 100,
@@ -178,8 +178,8 @@ function buildInvoiceDocument(invoice, account, lineItems, documentUUID) {
             "Country": [{ "IdentificationCode": [{ "_": MYINVOIS_CONFIG.SAINS_ADDRESS.countryCode }] }],
           }],
           "PartyLegalEntity": [{ "RegistrationName": [{ "_": MYINVOIS_CONFIG.SAINS_LEGAL_NAME }] }],
-          "Contact": [{ "Telephone": [{ "_": "/* TBC: SAINS customer service phone */" }],
-                         "ElectronicMail": [{ "_": "/* TBC: SAINS billing email */" }] }],
+          "Contact": [{ "Telephone": [{ "_": "+60677654321" }], // MOCK: confirm SAINS customer service phone with operations team
+                         "ElectronicMail": [{ "_": "billing@sains.com.my" }] }], // MOCK: confirm SAINS billing email with operations team
         }],
       }],
       "AccountingCustomerParty": [{

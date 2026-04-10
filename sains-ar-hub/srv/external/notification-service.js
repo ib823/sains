@@ -88,7 +88,7 @@ async function sendSMS(params) {
     const response = await axios.post(`${gatewayUrl}/send`, {
       to: params.to,
       message: message,
-      from: '/* TBC: SAINS sender ID registered with MCMC */',
+      from: 'SAINS', // MOCK: confirm MCMC-registered sender ID
       api_key: apiKey,
     }, { timeout: 15000 });
 
@@ -112,7 +112,7 @@ async function queuePostalNotice(params) {
   );
 
   await sendEmail({
-    to: '/* TBC: Finance Admin distribution list for postal queue */',
+    to: process.env.POSTAL_DISTRIBUTION_EMAIL || 'finance-admin@sains.com.my', // MOCK: confirm Finance Admin distribution list for postal queue
     subject: `[SAINS AR] Postal notice queued — ${params.noticeType} — ${params.accountNumber}`,
     body: `A postal notice requires printing and dispatch.\n\n` +
           `Account: ${params.accountNumber}\n` +

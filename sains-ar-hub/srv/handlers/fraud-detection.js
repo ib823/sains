@@ -58,8 +58,8 @@ async function checkFraudPatterns(pattern, data, req) {
     }
 
     const assignedTo = severity === 'HIGH'
-      ? '/* TBC: Finance Manager user ID */'
-      : '/* TBC: Finance Supervisor user ID */';
+      ? 'ROLE:FinanceManager' // MOCK: production uses XSUAA role-based assignment
+      : 'ROLE:FinanceSupervisor'; // MOCK: production uses XSUAA role-based assignment
 
     await db.run(INSERT.into('sains.ar.FraudAlert').entries({
       ID: uuidv4(),

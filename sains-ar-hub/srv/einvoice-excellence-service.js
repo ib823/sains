@@ -370,7 +370,7 @@ module.exports = cds.service.impl(async function () {
             : null;
 
           await sendEmail({
-            to: /* TBC: Finance Admin email distribution list */ 'finance-admin@sains.com.my',
+            to: process.env.EINVOICE_ADMIN_EMAIL || 'finance-admin@sains.com.my', // MOCK: confirm Finance Admin email distribution list
             subject: `URGENT: E-Invoice Cancellation Deadline Approaching - ${invoice?.invoiceNumber || line.invoice_ID}`,
             body: `The cancellation window for e-invoice ${invoice?.invoiceNumber || line.invoice_ID} ` +
               `(LHDN UUID: ${line.lhdnUUID}) expires at ${line.cancelDeadline}. ` +

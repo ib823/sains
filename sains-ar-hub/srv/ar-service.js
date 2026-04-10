@@ -252,7 +252,7 @@ async function _registerScheduledJobs() {
     return;
   }
 
-  const appUrl = process.env.APP_URL || '/* TBC: https://sains-ar-hub.<cf-domain> */';
+  const appUrl = process.env.APP_URL || 'http://localhost:4004'; // MOCK: set APP_URL env var to production CF app URL before deployment
   const tokenResponse = await axios.post(
     `${jobScheduler.uaa.url}/oauth/token?grant_type=client_credentials`,
     null,

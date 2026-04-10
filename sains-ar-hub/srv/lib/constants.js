@@ -88,7 +88,7 @@ const EINVOICE_CANCEL_WINDOW_HOURS = 72;
 const CHEQUE_CLEARANCE_BUSINESS_DAYS = 3;  // CRITICAL-11
 
 const SAP_CORE = Object.freeze({
-  COMPANY_CODE: '/* TBC: SAINS SAP company code */',
+  COMPANY_CODE: '9001', // MOCK: confirm actual company code with SAINS Finance during Blueprint
   JOURNAL_ENTRY_API_PATH: '/sap/opu/odata/sap/API_JOURNALENTRYITEMBASIC_SRV',
   BUSINESS_PARTNER_API_PATH: '/sap/opu/odata/sap/API_BUSINESS_PARTNER',
   COMMUNICATION_SCENARIO: 'SAP_COM_0002',
@@ -96,14 +96,15 @@ const SAP_CORE = Object.freeze({
   DOCUMENT_TYPE_AR: 'SA',
 });
 
+// MOCK: confirm actual cost centre codes with SAINS Finance
 const BRANCH_COST_CENTRE = Object.freeze({
-  SEREMBAN:    '/* TBC: Seremban cost centre */',
-  NILAI:       '/* TBC: Nilai cost centre */',
-  PORT_DICKSON:'/* TBC: Port Dickson cost centre */',
-  JELEBU:      '/* TBC: Jelebu cost centre */',
-  JEMPOL:      '/* TBC: Jempol cost centre */',
-  KUALA_PILAH: '/* TBC: Kuala Pilah cost centre */',
-  REMBAU:      '/* TBC: Rembau cost centre */',
+  SEREMBAN:    'CC-SRM', // MOCK: confirm actual cost centre codes with SAINS Finance during Blueprint
+  NILAI:       'CC-NLI', // MOCK: confirm actual cost centre codes with SAINS Finance during Blueprint
+  PORT_DICKSON:'CC-PDK', // MOCK: confirm actual cost centre codes with SAINS Finance during Blueprint
+  JELEBU:      'CC-JLB', // MOCK: confirm actual cost centre codes with SAINS Finance during Blueprint
+  JEMPOL:      'CC-JMP', // MOCK: confirm actual cost centre codes with SAINS Finance during Blueprint
+  KUALA_PILAH: 'CC-KPH', // MOCK: confirm actual cost centre codes with SAINS Finance during Blueprint
+  REMBAU:      'CC-RMB', // MOCK: confirm actual cost centre codes with SAINS Finance during Blueprint
 });
 
 const AGING_BUCKETS = Object.freeze([
@@ -150,9 +151,11 @@ const FRAUD_THRESHOLDS = Object.freeze({
   THIRD_PARTY_MULTI_ACCOUNT: 5,
 });
 
-const SUSPENSE_GL_ACCOUNT = '/* TBC: Suspense clearing GL account */';
-const PAAB_LIABILITY_GL   = '/* TBC: PAAB liability GL account */';
-const PAAB_PAYABLE_GL     = '/* TBC: PAAB accounts payable GL */';
+const SUSPENSE_GL_ACCOUNT = '125000'; // MOCK: confirm suspense clearing GL with SAINS Finance
+const PAAB_LIABILITY_GL   = '240000'; // MOCK: confirm PAAB liability GL
+const PAAB_PAYABLE_GL     = '250000'; // MOCK: confirm PAAB payable GL
+const PROVISION_GL        = '160000'; // MOCK: confirm provision GL account with SAINS Finance during Blueprint
+const BAD_DEBT_EXPENSE_GL = '700000'; // MOCK: confirm bad debt expense GL account with SAINS Finance during Blueprint
 
 module.exports = {
   ACCOUNT_STATUS, INVOICE_TYPE, INVOICE_STATUS, SOURCE_SYSTEM,
@@ -163,4 +166,5 @@ module.exports = {
   SAP_CORE, BRANCH_COST_CENTRE, AGING_BUCKETS, DEFAULT_PROVISION_RATES,
   PTP_LIMITS, PAYMENT_PLAN_LIMITS, FRAUD_THRESHOLDS,
   SUSPENSE_GL_ACCOUNT, PAAB_LIABILITY_GL, PAAB_PAYABLE_GL,
+  PROVISION_GL, BAD_DEBT_EXPENSE_GL,
 };
