@@ -37,25 +37,29 @@ if (process.env.DATABASE_URL && (process.env.CDS_ENV || '').startsWith('postgres
 }
 
 cds.on('bootstrap', (app) => {
-  // Health check endpoint
-  app.get('/health', async (_req, res) => {
+  // Health check endpoint — always returns 200 for platform probes.
+  // DB status is informational only (non-blocking) to avoid cold-start timeouts.
+  app.get('/health', (_req, res) => {
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      profile: process.env.CDS_ENV || 'development',
+      services: Object.keys(cds.services || {}).filter(s => !s.startsWith('cds.')),
+    });
+  });
+
+  // Deep health check — includes DB probe (use for monitoring, not platform liveness)
+  app.get('/health/deep', async (_req, res) => {
     let dbOk = false;
     try {
       const db = await cds.connect.to('db');
-      await db.run('SELECT 1 AS ok FROM DUMMY').catch(() =>
-        db.run(SELECT.one.from('sains.ar.AccountType').limit(1))
-      );
+      await db.run(SELECT.one.from('sains.ar.AccountType').limit(1));
       dbOk = true;
     } catch { /* DB not reachable */ }
-
-    const status = dbOk ? 'ok' : 'degraded';
-    const code = dbOk ? 200 : 503;
-    res.status(code).json({
-      status,
+    res.status(dbOk ? 200 : 503).json({
+      status: dbOk ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
-      profile: process.env.CDS_ENV || 'development',
       db: dbOk ? 'connected' : 'unreachable',
-      services: Object.keys(cds.services || {}).filter(s => !s.startsWith('cds.')),
     });
   });
 
