@@ -12,15 +12,15 @@ const logger = cds.log('jompay-adapter');
 
 const JOMPAY_CONFIG = {
   BILLER_CODE: process.env.JOMPAY_BILLER_CODE
-    || '/* TBC: SAINS JomPAY Biller Code registered with PayNet Malaysia */',
+    || 'MOCK_JOMPAY_BILLER_CODE', // MOCK: replace with real SAINS JomPAY Biller Code from PayNet Malaysia registration
   ACQUIRER_SFTP_HOST:
-    '/* TBC: Acquiring bank SFTP hostname */',
+    process.env.JOMPAY_SFTP_HOST || 'MOCK_JOMPAY_SFTP_HOST', // MOCK: replace with real acquiring bank SFTP hostname
   ACQUIRER_SFTP_USER:
-    '/* TBC: Acquiring bank SFTP username */',
+    process.env.JOMPAY_SFTP_USER || 'MOCK_JOMPAY_SFTP_USER', // MOCK: replace with real acquiring bank SFTP username
   ACQUIRER_SFTP_KEY_REF:
-    '/* TBC: BTP Credential Store key name for SFTP private key */',
+    process.env.JOMPAY_SFTP_KEY_REF || 'MOCK_JOMPAY_SFTP_KEY_REF', // MOCK: replace with real BTP Credential Store key name for SFTP private key
   ACQUIRER_SFTP_PATH:
-    '/* TBC: Path on bank SFTP server where reconciliation files are deposited */',
+    process.env.JOMPAY_SFTP_PATH || 'MOCK_JOMPAY_SFTP_PATH', // MOCK: replace with real path on bank SFTP server where reconciliation files are deposited
   FILE_FORMAT: 'CSV',   // CSV or FIXED_WIDTH — depends on acquiring bank
   ENCODING: 'UTF-8',
 };

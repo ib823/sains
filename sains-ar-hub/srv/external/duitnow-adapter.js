@@ -10,7 +10,7 @@ const logger = cds.log('duitnow-adapter');
 
 const DUITNOW_CONFIG = {
   MERCHANT_ID: process.env.DUITNOW_MERCHANT_ID
-    || '/* TBC: SAINS DuitNow Merchant ID from PayNet after merchant registration */',
+    || 'MOCK_DUITNOW_MERCHANT_ID', // MOCK: replace with real DuitNow Merchant ID from PayNet after merchant registration
   MERCHANT_NAME: 'SAINS',
   MERCHANT_CITY: 'SEREMBAN',
   MERCHANT_POSTAL: '70100',
@@ -19,10 +19,10 @@ const DUITNOW_CONFIG = {
   CURRENCY_CODE: '458',           // MYR ISO 4217 numeric code
   QR_EXPIRY_DAYS: 14,             // QR expires 14 days after bill date
   WEBHOOK_SECRET: process.env.DUITNOW_WEBHOOK_SECRET
-    || '/* TBC: DuitNow webhook HMAC secret from PayNet */',
+    || 'MOCK_DUITNOW_WEBHOOK_SECRET', // MOCK: replace with real DuitNow webhook HMAC secret from PayNet
   WEBHOOK_ENDPOINT: process.env.APP_URL
     ? `${process.env.APP_URL}/payment/processWebhookNotification`
-    : '/* TBC: SAINS AR Hub public URL + /payment/processWebhookNotification */',
+    : 'MOCK_APP_URL/payment/processWebhookNotification', // MOCK: replace with real SAINS AR Hub public URL
 };
 
 /**

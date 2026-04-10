@@ -55,11 +55,11 @@ entity MetisWorkOrder : cuid, managed {
 entity BankSFTPConfig : cuid, managed {
   bankCode           : String(10) not null; // e.g. MBB, CIMB, RHB, HLBB
   bankName           : String(80) not null;
-  sftpHost           : String(255) not null; // /* TBC: bank SFTP hostname */
+  sftpHost           : String(255) not null; // MOCK: bank SFTP hostname — configure per-bank in BTP Credential Store
   sftpPort           : Integer default 22;
-  sftpUsername       : String(100) not null; // /* TBC: bank SFTP username */
+  sftpUsername       : String(100) not null; // MOCK: bank SFTP username — configure per-bank
   sftpKeyRef         : String(100) not null; // BTP Credential Store / Vault key name
-  sftpRemotePath     : String(255) not null; // /* TBC: path on bank SFTP */
+  sftpRemotePath     : String(255) not null; // MOCK: path on bank SFTP — confirm with bank
   filePattern        : String(100);          // e.g. SAINS_*.mt940 or STATEMENT_*.xml
   fileFormat         : String(10) not null default 'MT940'; // MT940 | CAMT053
   accountNumber      : String(30);           // SAINS bank account number at this bank
@@ -76,25 +76,25 @@ entity iWRSIntegrationConfig : cuid, managed {
   activePattern      : String(10) not null default 'PATTERN_A';
                        // PATTERN_A | PATTERN_B | PATTERN_C
   // Pattern A — REST API
-  apiBaseURL         : String(255); // /* TBC: iWRS REST API base URL */
-  apiKeyRef          : String(100); // /* TBC: BTP Credential Store / Vault key for iWRS API key */
+  apiBaseURL         : String(255); // MOCK: iWRS REST API base URL — configure in BTP Credential Store
+  apiKeyRef          : String(100); // MOCK: BTP Credential Store / Vault key for iWRS API key
   apiTimeoutMs       : Integer default 30000;
   // Pattern B — SFTP
-  sftpHost           : String(255); // /* TBC: iWRS SFTP hostname */
+  sftpHost           : String(255); // MOCK: iWRS SFTP hostname — confirm with iWRS vendor
   sftpPort           : Integer default 22;
-  sftpUsername       : String(100); // /* TBC: iWRS SFTP username */
-  sftpKeyRef         : String(100); // /* TBC: SFTP private key in Credential Store */
-  sftpDeltaPath      : String(255); // /* TBC: path where iWRS deposits delta files */
-  sftpFilePattern    : String(100); // /* TBC: file naming pattern */
+  sftpUsername       : String(100); // MOCK: iWRS SFTP username — confirm with iWRS vendor
+  sftpKeyRef         : String(100); // MOCK: SFTP private key in Credential Store — confirm with iWRS vendor
+  sftpDeltaPath      : String(255); // MOCK: path where iWRS deposits delta files — confirm with iWRS vendor
+  sftpFilePattern    : String(100); // MOCK: file naming pattern — confirm with iWRS vendor
   // Pattern C — Direct DB (last resort)
-  dbHost             : String(255); // /* TBC: iWRS DB hostname */
-  dbPort             : Integer;     // /* TBC: iWRS DB port */
-  dbSchema           : String(50);  // /* TBC: iWRS read-only schema name */
-  dbUserRef          : String(100); // /* TBC: read-only service account credential reference */
+  dbHost             : String(255); // MOCK: iWRS DB hostname — confirm with iWRS vendor
+  dbPort             : Integer;     // MOCK: iWRS DB port — confirm with iWRS vendor
+  dbSchema           : String(50);  // MOCK: iWRS read-only schema name — confirm with iWRS vendor
+  dbUserRef          : String(100); // MOCK: read-only service account credential reference — confirm with iWRS vendor
   dbPollIntervalMin  : Integer default 5;
   // Outbound (for disconnection/reconnection notifications)
-  outboundEndpoint   : String(255); // /* TBC: iWRS endpoint to receive AR Hub notifications */
-  outboundApiKeyRef  : String(100); // /* TBC: outbound API key */
+  outboundEndpoint   : String(255); // MOCK: iWRS endpoint to receive AR Hub notifications — confirm with iWRS vendor
+  outboundApiKeyRef  : String(100); // MOCK: outbound API key — confirm with iWRS vendor
   isActive           : Boolean default true;
 }
 

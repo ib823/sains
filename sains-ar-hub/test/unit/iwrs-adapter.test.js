@@ -41,43 +41,47 @@ describe('iWRS Adapter — Unit Tests', () => {
       expect(typeof iwrs.notifyReconnection).toBe('function');
     });
 
-    test('exports Pattern B stubs', () => {
+    test('exports Pattern B mock implementations', () => {
       expect(typeof iwrs.processPatternBDeltaFile).toBe('function');
       expect(typeof iwrs.parsePatternBAccountFile).toBe('function');
       expect(typeof iwrs.parsePatternBInvoiceFile).toBe('function');
     });
 
-    test('exports Pattern C stub', () => {
+    test('exports Pattern C mock implementation', () => {
       expect(typeof iwrs.pollPatternCAccounts).toBe('function');
     });
   });
 
-  describe('TBC Stubs — Pattern B', () => {
-    test('processPatternBDeltaFile throws with TBC message', async () => {
-      await expect(iwrs.processPatternBDeltaFile(new Date()))
-        .rejects.toThrow(/TBC/);
+  describe('Mock implementations — Pattern B', () => {
+    test('processPatternBDeltaFile returns MOCK result', async () => {
+      const result = await iwrs.processPatternBDeltaFile(new Date());
+      expect(result).toHaveProperty('source', 'MOCK');
+      expect(result).toHaveProperty('processed', 0);
     });
 
-    test('parsePatternBAccountFile throws with TBC message', () => {
-      expect(() => iwrs.parsePatternBAccountFile('csv content'))
-        .toThrow(/TBC/);
+    test('parsePatternBAccountFile returns empty array', () => {
+      const result = iwrs.parsePatternBAccountFile('csv content');
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(0);
     });
 
-    test('parsePatternBInvoiceFile throws with TBC message', () => {
-      expect(() => iwrs.parsePatternBInvoiceFile('csv content'))
-        .toThrow(/TBC/);
+    test('parsePatternBInvoiceFile returns empty array', () => {
+      const result = iwrs.parsePatternBInvoiceFile('csv content');
+      expect(Array.isArray(result)).toBe(true);
+      expect(result.length).toBe(0);
     });
   });
 
-  describe('TBC Stubs — Pattern C', () => {
-    test('pollPatternCAccounts throws with TBC message', async () => {
-      await expect(iwrs.pollPatternCAccounts(new Date()))
-        .rejects.toThrow(/TBC/);
+  describe('Mock implementations — Pattern C', () => {
+    test('pollPatternCAccounts returns MOCK result', async () => {
+      const result = await iwrs.pollPatternCAccounts(new Date());
+      expect(result).toHaveProperty('source', 'MOCK');
+      expect(result).toHaveProperty('accounts', 0);
     });
 
-    test('Pattern C error mentions last resort', async () => {
-      await expect(iwrs.pollPatternCAccounts(new Date()))
-        .rejects.toThrow(/Pattern C/);
+    test('Pattern C mock returns payments property', async () => {
+      const result = await iwrs.pollPatternCAccounts(new Date());
+      expect(result).toHaveProperty('payments', 0);
     });
   });
 

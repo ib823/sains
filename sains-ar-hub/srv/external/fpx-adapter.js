@@ -14,15 +14,15 @@ const logger = cds.log('fpx-adapter');
 
 const FPX_CONFIG = {
   MERCHANT_ID: process.env.FPX_MERCHANT_ID
-    || '/* TBC: SAINS FPX Merchant ID from PayNet merchant registration */',
+    || 'MOCK_FPX_MERCHANT_ID', // MOCK: replace with real FPX Merchant ID from PayNet merchant registration
   IPN_VERIFICATION_URL: process.env.FPX_IPN_VERIFY_URL
-    || '/* TBC: FPX IPN verification endpoint from PayNet */',
+    || 'MOCK_FPX_IPN_VERIFY_URL', // MOCK: replace with real FPX IPN verification endpoint from PayNet
   SELLER_EXCHANGE_ID: process.env.FPX_SELLER_EXCHANGE_ID
-    || '/* TBC: FPX Seller Exchange ID from PayNet */',
+    || 'MOCK_FPX_SELLER_EXCHANGE_ID', // MOCK: replace with real FPX Seller Exchange ID from PayNet
   SHARED_SECRET: process.env.FPX_SHARED_SECRET
-    || '/* TBC: FPX shared secret for HMAC verification — store in BTP Credential Store / Vault */',
+    || 'MOCK_FPX_SHARED_SECRET', // MOCK: replace with real FPX shared secret — store in BTP Credential Store / Vault
   PAYMENT_PAGE_URL: process.env.FPX_PAYMENT_PAGE_URL
-    || '/* TBC: FPX payment page URL for customer redirect from iSAINS */',
+    || 'MOCK_FPX_PAYMENT_PAGE_URL', // MOCK: replace with real FPX payment page URL from PayNet
   // Standard FPX parameters
   SELLER_ORDER_PREFIX: 'SAINS-FPX-',
   CURRENCY: 'MYR',
@@ -61,7 +61,7 @@ function validateIPNSignature(payload) {
   }
 
   // Build the string to verify — sorted field names, pipe-delimited
-  // /* TBC: Confirm exact field ordering and delimiter with PayNet FPX Merchant Integration Guide */
+  // MOCK: Confirm exact field ordering and delimiter with PayNet FPX Merchant Integration Guide
   const fieldsToSign = Object.keys(payload)
     .filter(k => k !== 'fpx_checkSum' && k.startsWith('fpx_'))
     .sort()
@@ -96,7 +96,7 @@ async function processIPNNotification(payload) {
   const db = await cds.connect.to('db');
 
   // Status '00' = approved. All other codes = declined/failed.
-  // /* TBC: Confirm FPX status code list with PayNet */
+  // MOCK: Confirm FPX status code list with PayNet
   const isApproved = payload.fpx_txnStatus === '00';
 
   if (!isApproved) {
@@ -171,23 +171,23 @@ async function processIPNNotification(payload) {
 function buildPaymentInitiationURL(accountNumber, amount, invoiceNumber) {
   const orderNo = `${FPX_CONFIG.SELLER_ORDER_PREFIX}${accountNumber}-${Date.now()}`;
   const amountStr = amount.toFixed(2);
-  const returnUrl = `${process.env.APP_URL || '/* TBC: AR Hub public URL */'}/payment/fpx/ipn`;
+  const returnUrl = `${process.env.APP_URL || 'MOCK_APP_URL'}/payment/fpx/ipn`; // MOCK: replace with real AR Hub public URL
 
   // Build FPX payment parameters
-  // /* TBC: Confirm exact parameter names and order with PayNet FPX Merchant Integration Guide */
+  // MOCK: Confirm exact parameter names and order with PayNet FPX Merchant Integration Guide
   const params = new URLSearchParams({
     fpx_msgType:       'AR',
     fpx_msgToken:      'extended',
     fpx_sellerExId:    FPX_CONFIG.SELLER_EXCHANGE_ID,
     fpx_sellerOrderNo: orderNo,
     fpx_sellerId:      FPX_CONFIG.MERCHANT_ID,
-    fpx_sellerBankCode:'MBB0227', // /* TBC: SAINS bank code */
+    fpx_sellerBankCode:'MBB0227', // MOCK: confirm SAINS bank code with PayNet
     fpx_txnCurrency:   FPX_CONFIG.CURRENCY,
     fpx_txnAmount:     amountStr,
     fpx_buyerEmail:    '',         // Optional
     fpx_checkSum:      '',         // Will be computed below
     fpx_productDesc:   `SAINS Water Bill ${invoiceNumber}`.substring(0, 100),
-    fpx_version:       '7.0',      // /* TBC: FPX version — confirm with PayNet */
+    fpx_version:       '7.0',      // MOCK: FPX version — confirm with PayNet
     fpx_returnURL:     returnUrl,
     fpx_callbackURL:   returnUrl,
     fpx_language:      FPX_CONFIG.LANGUAGE,
@@ -195,7 +195,7 @@ function buildPaymentInitiationURL(accountNumber, amount, invoiceNumber) {
   });
 
   // Compute checksum
-  // /* TBC: Confirm checksum fields and order with PayNet */
+  // MOCK: Confirm checksum fields and order with PayNet
   const fieldsForHash = [
     'AR', 'extended',
     FPX_CONFIG.SELLER_EXCHANGE_ID,

@@ -1,0 +1,9 @@
+ID,tariffBand_ID,tariffBand_code,blockSequence,fromM3,toM3,ratePerM3,fixedCharge,effectiveFrom,effectiveTo
+tb-dom-a-b1,tb-dom-a-0001-0001-000000000001,DOM_A,1,0,20,0.57,6.00,2020-01-01,
+tb-dom-a-b2,tb-dom-a-0001-0001-000000000001,DOM_A,2,20,35,1.03,0,2020-01-01,
+tb-dom-a-b3,tb-dom-a-0001-0001-000000000001,DOM_A,3,35,,2.00,0,2020-01-01,
+tb-com-a-b1,tb-com-a-0001-0001-000000000003,COM_A,1,0,,2.07,30.00,2020-01-01,
+tb-com-b-b1,tb-com-b-0001-0001-000000000004,COM_B,1,0,,2.07,50.00,2020-01-01,
+tb-ind-a-b1,tb-ind-a-0001-0001-000000000005,IND_A,1,0,,2.28,100.00,2020-01-01,
+tb-gov-a-b1,tb-gov-a-0001-0001-000000000006,GOV_A,1,0,,1.50,50.00,2020-01-01,
+tb-inst-a-b1,tb-inst-a-001-0001-000000000007,INST_A,1,0,,1.20,20.00,2020-01-01,

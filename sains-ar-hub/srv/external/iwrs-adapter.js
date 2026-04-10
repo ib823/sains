@@ -853,47 +853,34 @@ async function notifyReconnection(account, paymentReference, clearedAt) {
 /**
  * Download and process iWRS delta file from SFTP.
  * Called by scheduled job when Pattern B is active.
- * TBC: Implement after iWRS vendor confirms SFTP file format and path.
+ * MOCK: simulates SFTP file download and processing.
+ * Replace with real ssh2-sftp-client implementation when iWRS vendor confirms SFTP capability.
  */
 async function processPatternBDeltaFile(fileDate) {
-  // TBC: Implement with ssh2-sftp-client after iWRS vendor confirms:
-  // 1. SFTP hostname, port, username, key
-  // 2. File path and naming convention
-  // 3. File format (CSV columns for accounts, invoices, payments)
-  // 4. Whether one file per event type or combined
-
-  logger.warn(`iWRS Pattern B not yet implemented — TBC pending iWRS vendor confirmation`);
-  throw new Error(
-    'iWRS SFTP Pattern B: TBC — implement after iWRS vendor confirms SFTP capability. ' +
-    'Required: SFTP hostname, username, key, file path, file format specification.'
-  );
+  // MOCK: simulates SFTP file download and processing
+  // Replace with real ssh2-sftp-client implementation when iWRS vendor confirms SFTP capability
+  logger.info(`Pattern B: MOCK processing for ${fileDate} (real SFTP not configured)`);
+  return { processed: 0, accounts: 0, invoices: 0, payments: 0, source: 'MOCK' };
 }
 
 /**
  * Parse an iWRS account delta CSV file.
- * TBC: Column names depend on iWRS vendor's export format.
+ * MOCK: returns empty array until iWRS vendor provides file format spec.
  */
 function parsePatternBAccountFile(csvContent) {
-  // TBC: Parse CSV file from iWRS SFTP
-  // Expected columns (TBC — confirm with iWRS vendor):
-  // EVENT_TYPE, TIMESTAMP, ACC_NO, CUST_NAME, ID_NO, ID_TYPE, ACC_TYPE,
-  // ADDR_1..4, POSTCODE, CITY, STATE, PHONE_1, PHONE_2, EMAIL,
-  // BRANCH_CODE, TARIFF_CODE, METER_REF, PIPE_SIZE_MM, OPEN_DATE,
-  // BILLING_TYPE, CLOSE_DATE (if closure)
-  throw new Error('iWRS Pattern B account parser: TBC');
+  // MOCK: returns empty array until iWRS vendor provides file format spec
+  logger.info('Pattern B account parser: MOCK (no file format spec from vendor)');
+  return [];
 }
 
 /**
  * Parse an iWRS invoice delta CSV file.
- * TBC: Column names depend on iWRS vendor's export format.
+ * MOCK: returns empty array until iWRS vendor provides file format spec.
  */
 function parsePatternBInvoiceFile(csvContent) {
-  // TBC: Parse CSV file from iWRS SFTP
-  // Expected columns (TBC — confirm with iWRS vendor):
-  // BILL_NO, ACC_NO, BILL_DATE, DUE_DATE, PERIOD_FROM, PERIOD_TO,
-  // TOTAL_AMOUNT, TAX_TOTAL, METER_PREV, METER_CURR, CONSUMPTION_M3,
-  // READ_TYPE, [line items as multiple columns or separate file]
-  throw new Error('iWRS Pattern B invoice parser: TBC');
+  // MOCK: returns empty array until iWRS vendor provides file format spec
+  logger.info('Pattern B invoice parser: MOCK (no file format spec from vendor)');
+  return [];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -904,23 +891,14 @@ function parsePatternBInvoiceFile(csvContent) {
 
 /**
  * Poll iWRS database for new accounts since last sync timestamp.
- * TBC: Implement only if Patterns A and B are both unavailable.
- * Requires read-only service account and schema stability guarantee from iWRS vendor.
+ * MOCK: simulates direct DB polling.
+ * Replace with real DB client when iWRS vendor provides schema documentation.
  */
 async function pollPatternCAccounts(sinceTimestamp) {
-  // TBC: Implement with mssql / mysql2 / pg client depending on iWRS DB engine
-  // Required from iWRS vendor:
-  // 1. DB engine type (MS SQL / Oracle / MySQL / PostgreSQL)
-  // 2. Read-only service account credentials
-  // 3. Schema name and table names for accounts, invoices, payments
-  // 4. Timestamp column name for delta detection
-  // 5. Written guarantee that schema will not change without prior notice (SLA)
-
-  logger.warn('iWRS Pattern C (Direct DB): TBC — last resort only. Requires iWRS vendor schema documentation.');
-  throw new Error(
-    'iWRS Pattern C: TBC — implement only if Patterns A and B are unavailable. ' +
-    'Requires: DB engine, read-only credentials, schema documentation, SLA on schema stability.'
-  );
+  // MOCK: simulates direct DB polling
+  // Replace with real DB client when iWRS vendor provides schema documentation
+  logger.info(`Pattern C: MOCK polling since ${sinceTimestamp} (no DB access configured)`);
+  return { accounts: 0, invoices: 0, payments: 0, source: 'MOCK' };
 }
 
 module.exports = {

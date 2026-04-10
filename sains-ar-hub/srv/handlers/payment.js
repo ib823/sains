@@ -25,6 +25,22 @@ module.exports = (srv) => {
     payment.amountAllocated = 0;
     payment.amountUnallocated = payment.amount;
 
+    // Generate sequential receipt number
+    const db = await cds.connect.to('db');
+    const yearMonth = (payment.paymentDate || new Date().toISOString()).substring(0, 7);
+    const counter = await db.run(
+      SELECT.one.from('sains.ar.ReceiptSequenceCounter').where({ yearMonth }).forUpdate()
+    );
+    let seq;
+    if (counter) {
+      seq = counter.lastSequence + 1;
+      await db.run(UPDATE('sains.ar.ReceiptSequenceCounter').set({ lastSequence: seq }).where({ yearMonth }));
+    } else {
+      seq = 1;
+      await db.run(INSERT.into('sains.ar.ReceiptSequenceCounter').entries({ yearMonth, lastSequence: 1 }));
+    }
+    payment.receiptNumber = `RCP-${yearMonth.replace('-', '')}-${String(seq).padStart(6, '0')}`;
+
     // Cheque clearance hold (CRITICAL-11)
     if (payment.channel === PAYMENT_CHANNEL.COUNTER_CHEQUE) {
       payment.status = PAYMENT_STATUS.CLEARING_PENDING;

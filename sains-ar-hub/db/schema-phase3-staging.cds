@@ -11,11 +11,11 @@ using sains.ar as ar from './schema';
 entity StagingDBConfig : cuid, managed {
   dbType                : String(20) not null default 'MSSQL';
                           // MSSQL | MYSQL | POSTGRES | ORACLE
-  dbHost                : String(255);  // /* TBC: Staging DB hostname */
+  dbHost                : String(255);  // MOCK: Staging DB hostname — configure in BTP Credential Store
   dbPort                : Integer;
-  dbName                : String(100);  // /* TBC: Staging DB database name */
-  dbSchema              : String(50);   // /* TBC: Staging DB schema name */
-  dbUserRef             : String(100);  // /* TBC: read-only service account credential reference in BTP Credential Store */
+  dbName                : String(100);  // MOCK: Staging DB database name — confirm with SAINS IT
+  dbSchema              : String(50);   // MOCK: Staging DB schema name — confirm with SAINS IT
+  dbUserRef             : String(100);  // MOCK: read-only service account credential reference in BTP Credential Store
   pollIntervalMinutes   : Integer default 15;
   lastPollAt            : DateTime;
   lastSuccessAt         : DateTime;

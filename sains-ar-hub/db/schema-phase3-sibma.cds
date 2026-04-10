@@ -6,8 +6,8 @@ using { cuid, managed } from '@sap/cds/common';
 // Single active record pattern. Outbound integration with SiBMA Water Billing.
 
 entity SiBMAConfig : cuid, managed {
-  apiBaseURL              : String(255);    // /* TBC: SiBMA REST API base URL */
-  apiKeyRef               : String(100);    // /* TBC: SiBMA API key in BTP Credential Store */
+  apiBaseURL              : String(255);    // MOCK: SiBMA REST API base URL — configure in BTP Credential Store
+  apiKeyRef               : String(100);    // MOCK: SiBMA API key in BTP Credential Store
   authMethod              : String(20) default 'API_KEY';
                             // API_KEY | OAUTH2 | BASIC
   pushPaymentConfirmations : Boolean default true;

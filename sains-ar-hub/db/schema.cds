@@ -127,6 +127,12 @@ entity InvoiceSequenceCounter {
       lastSequenceNumber : Integer not null default 0;
 }
 
+// Receipt number sequence counter (one row per YYYY-MM)
+entity ReceiptSequenceCounter {
+  key yearMonth   : String(7); // YYYY-MM
+      lastSequence : Integer default 0;
+}
+
 // ─── CUSTOMER ACCOUNT ──────────────────────────────────────────────────────
 
 @assert.unique: { accountNumber: [ accountNumber ] }
@@ -380,6 +386,7 @@ entity Payment : cuid, managed {
   thirdPartyName    : String(150);
   isThirdParty      : Boolean default false;
   mandateID         : UUID;   // DirectDebitMandate reference
+  receiptNumber     : String(20);
 }
 
 entity PaymentClearing : cuid {

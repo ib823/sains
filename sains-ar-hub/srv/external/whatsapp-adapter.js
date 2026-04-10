@@ -8,13 +8,13 @@ const logger = cds.log('whatsapp-adapter');
 
 const WHATSAPP_CONFIG = {
   API_URL: process.env.WHATSAPP_API_URL
-    || '/* TBC: WhatsApp Business API base URL (Meta Cloud API or on-premises) */',
+    || 'MOCK_WHATSAPP_API_URL', // MOCK: replace with real WhatsApp Business API base URL from Meta registration
   PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID
-    || '/* TBC: SAINS WhatsApp Business Phone Number ID from Meta */',
+    || 'MOCK_WHATSAPP_PHONE_NUMBER_ID', // MOCK: replace with real SAINS WhatsApp Business Phone Number ID from Meta
   ACCESS_TOKEN: process.env.WHATSAPP_ACCESS_TOKEN
-    || '/* TBC: WhatsApp Business API permanent access token from Meta — store in BTP Credential Store */',
+    || 'MOCK_WHATSAPP_ACCESS_TOKEN', // MOCK: replace with real WhatsApp Business API access token — store in BTP Credential Store
   BUSINESS_ACCOUNT_ID: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID
-    || '/* TBC: SAINS WhatsApp Business Account ID from Meta */',
+    || 'MOCK_WHATSAPP_BUSINESS_ACCOUNT_ID', // MOCK: replace with real SAINS WhatsApp Business Account ID from Meta
   // Message templates must be pre-approved by Meta before use.
   // Template names below are examples — register these exact names in Meta Business Manager.
   TEMPLATES: {
@@ -107,7 +107,7 @@ async function sendPaymentReminder(account, invoice, language = 'ms') {
   const dueDateStr = `${dueDate.getDate().toString().padStart(2,'0')}/${(dueDate.getMonth()+1).toString().padStart(2,'0')}/${dueDate.getFullYear()}`;
 
   // Payment URL: deep link to iSAINS or web portal pre-filled with account
-  const paymentURL = `${process.env.APP_URL || '/* TBC: SAINS portal URL */'}/pay?acc=${account.accountNumber}&inv=${invoice.invoiceNumber}&amt=${invoice.amountOutstanding.toFixed(2)}`;
+  const paymentURL = `${process.env.APP_URL || 'MOCK_APP_URL'}/pay?acc=${account.accountNumber}&inv=${invoice.invoiceNumber}&amt=${invoice.amountOutstanding.toFixed(2)}`; // MOCK: replace APP_URL with real SAINS portal URL
 
   const components = [
     {

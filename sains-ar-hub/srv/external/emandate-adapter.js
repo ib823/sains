@@ -10,17 +10,17 @@ const logger = cds.log('emandate-adapter');
 // After registration with PayNet as a Direct Debit Originator
 const EMANDATE_CONFIG = {
   API_BASE_URL: process.env.EMANDATE_API_URL
-    || '/* TBC: PayNet eMandate API base URL */',
+    || 'MOCK_EMANDATE_API_URL', // MOCK: replace with real PayNet eMandate API base URL
   CLIENT_ID: process.env.EMANDATE_CLIENT_ID
-    || '/* TBC: PayNet eMandate Client ID */',
+    || 'MOCK_EMANDATE_CLIENT_ID', // MOCK: replace with real PayNet eMandate Client ID
   CLIENT_SECRET: process.env.EMANDATE_CLIENT_SECRET
-    || '/* TBC: PayNet eMandate Client Secret — store in BTP Credential Store */',
+    || 'MOCK_EMANDATE_CLIENT_SECRET', // MOCK: replace with real PayNet eMandate Client Secret — store in BTP Credential Store
   ORIGINATOR_ID: process.env.EMANDATE_ORIGINATOR_ID
-    || '/* TBC: SAINS Direct Debit Originator ID from PayNet */',
+    || 'MOCK_EMANDATE_ORIGINATOR_ID', // MOCK: replace with real SAINS Direct Debit Originator ID from PayNet
   SERVICE_NAME: 'SAINS Water Bill',
   RETURN_URL: process.env.APP_URL
     ? `${process.env.APP_URL}/payment/emandate-callback`
-    : '/* TBC: SAINS AR Hub eMandate callback URL */',
+    : 'MOCK_APP_URL/payment/emandate-callback', // MOCK: replace with real SAINS AR Hub eMandate callback URL
 };
 
 /**

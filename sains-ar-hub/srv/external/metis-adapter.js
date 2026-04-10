@@ -8,13 +8,13 @@ const logger = cds.log('metis-adapter');
 
 const METIS_CONFIG = {
   API_BASE_URL: process.env.METIS_API_URL
-    || '/* TBC: Metis work order system API base URL — from Metis vendor */',
+    || 'MOCK_METIS_API_URL', // MOCK: replace with real Metis work order system API base URL from Metis vendor
   API_KEY: process.env.METIS_API_KEY
-    || '/* TBC: Metis API key — store in BTP Credential Store / Vault */',
+    || 'MOCK_METIS_API_KEY', // MOCK: replace with real Metis API key — store in BTP Credential Store / Vault
   AUTH_METHOD: process.env.METIS_AUTH_METHOD || 'API_KEY',
-    // API_KEY | OAUTH2 | BASIC — TBC: confirm with Metis vendor
-  WORK_ORDER_TYPE_DISCONNECT: '/* TBC: Metis work order type code for disconnection */',
-  WORK_ORDER_TYPE_RECONNECT:  '/* TBC: Metis work order type code for reconnection */',
+    // API_KEY | OAUTH2 | BASIC — MOCK: confirm auth method with Metis vendor
+  WORK_ORDER_TYPE_DISCONNECT: process.env.METIS_WO_TYPE_DISCONNECT || 'MOCK_METIS_WO_DISCONNECT', // MOCK: replace with real Metis work order type code for disconnection
+  WORK_ORDER_TYPE_RECONNECT:  process.env.METIS_WO_TYPE_RECONNECT  || 'MOCK_METIS_WO_RECONNECT',  // MOCK: replace with real Metis work order type code for reconnection
   REQUEST_TIMEOUT_MS: 30000,
 };
 
@@ -57,7 +57,7 @@ async function createDisconnectionWorkOrder(account, authorisedBy, workOrderID) 
 
   try {
     const payload = {
-      // /* TBC: Confirm exact Metis field names with Metis vendor */
+      // MOCK: Confirm exact Metis field names with Metis vendor
       workOrderType: METIS_CONFIG.WORK_ORDER_TYPE_DISCONNECT,
       externalReference: workOrderID, // AR Hub reference for callback
       accountNumber: account.accountNumber,
@@ -77,7 +77,7 @@ async function createDisconnectionWorkOrder(account, authorisedBy, workOrderID) 
         .toISOString().substring(0, 10), // T+2 business days
       outstandingBalance: account.balanceOutstanding,
       dunningLevel: account.dunningLevel,
-      callbackURL: `${process.env.APP_URL || '/* TBC */'}/integration/receiveMetisCompletion`,
+      callbackURL: `${process.env.APP_URL || 'MOCK_APP_URL'}/integration/receiveMetisCompletion`, // MOCK: replace with real AR Hub public URL
     };
 
     const headers = _buildHeaders();
@@ -161,7 +161,7 @@ async function createReconnectionWorkOrder(account, paymentReference) {
 
   try {
     const payload = {
-      // /* TBC: Confirm exact Metis field names with Metis vendor */
+      // MOCK: Confirm exact Metis field names with Metis vendor
       workOrderType: METIS_CONFIG.WORK_ORDER_TYPE_RECONNECT,
       externalReference: workOrderID,
       accountNumber: account.accountNumber,
@@ -170,7 +170,7 @@ async function createReconnectionWorkOrder(account, paymentReference) {
       meterReference: account.meterReference,
       reason: `Balance cleared by payment ${paymentReference}`,
       requestedDate: new Date().toISOString().substring(0, 10),
-      callbackURL: `${process.env.APP_URL || '/* TBC */'}/integration/receiveMetisCompletion`,
+      callbackURL: `${process.env.APP_URL || 'MOCK_APP_URL'}/integration/receiveMetisCompletion`, // MOCK: replace with real AR Hub public URL
     };
 
     const headers = _buildHeaders();
@@ -218,7 +218,7 @@ function _buildHeaders() {
       'X-Source': 'SAINS-AR-HUB',
     };
   }
-  // /* TBC: Add OAuth2 token fetch if Metis uses OAuth2 */
+  // MOCK: Add OAuth2 token fetch if Metis uses OAuth2 — confirm auth method with Metis vendor
   return {
     'Authorization': `Bearer ${METIS_CONFIG.API_KEY}`,
     'Content-Type': 'application/json',
