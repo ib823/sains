@@ -286,7 +286,8 @@ function generateAccountRow(rng, idx, tariffBandIDs) {
   const phone = makePhone(rng);
   const email = makeEmail(rng, fullName);
 
-  const accountNumber = String(1000000000 + idx + 1);
+  // Offset above CSV seed data (50 accounts at 1000000001-1000000050)
+  const accountNumber = String(2000000000 + idx + 1);
   const id = `acct-${String(idx + 1).padStart(9, '0')}`;
 
   let balance = 0;
