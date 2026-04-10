@@ -187,6 +187,12 @@ service ARService @(path:'/ar') {
 
     @(requires:['FinanceAdmin','SystemProcess'])
     action markDormant(noticeStage: Integer) returns Boolean;
+
+    @(requires:['FinanceManager','CFO'])
+    action forfeitDeposit(reason: String(500)) returns Boolean;
+
+    @(requires:['FinanceAdmin','BILStaff'])
+    action requestTopUp() returns Boolean;
   }
 
   // ── PAYMENT PLANS ───────────────────────────────────────────────────────

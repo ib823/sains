@@ -237,17 +237,47 @@ module.exports = cds.service.impl(async function() {
 
   srv.on('getDepositSufficiencyReviewReport', async (req) => {
     const { reviewYear } = req.data;
+    const REQUIRED_DEPOSIT = { DOM: 100, COM_S: 500, COM_L: 2000, IND: 5000, GOV: 10000, INST: 1000 };
     const db = await cds.connect.to('db');
+
     const accounts = await db.run(
       SELECT.from('sains.ar.CustomerAccount')
         .columns('ID', 'accountNumber', 'accountType_code', 'balanceDeposit')
         .where({ accountStatus: 'ACTIVE' })
     );
-    return accounts.map(a => ({
-      accountID: a.ID, accountNumber: a.accountNumber, accountType: a.accountType_code,
-      currentDepositAmount: a.balanceDeposit, avgMonthlyBill6Months: 0,
-      requiredDeposit: 0, shortfall: 0, topUpRequired: false,
-    }));
+
+    // Fetch all held deposits for active accounts in one query
+    const accountIDs = accounts.map(a => a.ID);
+    let heldDeposits = [];
+    if (accountIDs.length > 0) {
+      heldDeposits = await db.run(
+        SELECT.from('sains.ar.DepositRecord')
+          .columns('account_ID', 'amount')
+          .where({ status: 'HELD' })
+      );
+    }
+
+    // Build map of account_ID -> sum of held deposits
+    const depositByAccount = {};
+    for (const d of heldDeposits) {
+      depositByAccount[d.account_ID] = (depositByAccount[d.account_ID] || 0) + Number(d.amount || 0);
+    }
+
+    return accounts.map(a => {
+      const required = REQUIRED_DEPOSIT[a.accountType_code] || 0;
+      const actual = depositByAccount[a.ID] || Number(a.balanceDeposit || 0);
+      const shortfall = Math.max(0, required - actual);
+      return {
+        accountID: a.ID,
+        accountNumber: a.accountNumber,
+        accountType: a.accountType_code,
+        currentDepositAmount: actual,
+        avgMonthlyBill6Months: 0,
+        requiredDeposit: required,
+        shortfall,
+        topUpRequired: shortfall > 0,
+      };
+    });
   });
 
   srv.on('getSuspenseReport', async (req) => {

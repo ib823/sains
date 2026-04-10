@@ -182,4 +182,141 @@ module.exports = (srv) => {
       { status: 'DORMANT', noticeStage }, deposit.account_ID);
     return true;
   });
+
+  srv.on('forfeitDeposit', 'DepositRecords', async (req) => {
+    const ID = req.params[0]?.ID ?? req.params[0];
+    const { reason } = req.data;
+    const db = await cds.connect.to('db');
+
+    const deposit = await db.run(SELECT.one.from('sains.ar.DepositRecord').where({ ID }));
+    if (!deposit) return req.error(404, 'Deposit not found');
+    if (deposit.status !== DEPOSIT_STATUS.HELD)
+      return req.error(400, `Cannot forfeit deposit in status ${deposit.status}`);
+
+    await db.run(UPDATE('sains.ar.DepositRecord').set({
+      status: 'FORFEITED',
+      notes: reason,
+    }).where({ ID }));
+
+    await logAction(req, 'FORFEIT_DEPOSIT', 'DepositRecord', ID, deposit,
+      { status: 'FORFEITED', reason }, deposit.account_ID);
+
+    // MOCK: GL posting uses existing non-blocking pattern from approveRefund
+    try {
+      const account = await db.run(
+        SELECT.one.from('sains.ar.CustomerAccount')
+          .columns('accountType_code', 'branchCode', 'accountNumber')
+          .where({ ID: deposit.account_ID })
+      );
+      const glMappings = await db.run(
+        SELECT.from('sains.ar.GLAccountMapping').where({ transactionType: 'DEPOSIT_FORFEIT', isActive: true })
+      );
+      const transactions = [{
+        transactionType: 'DEPOSIT_FORFEIT', accountTypeCode: account?.accountType_code || 'ALL',
+        chargeTypeCode: 'DEPOSIT', branchCode: account?.branchCode || 'COMMON',
+        amount: deposit.amount,
+        referenceDocType: 'DEPOSIT_FORFEIT', referenceDocID: ID,
+        itemText: `Deposit forfeit: Dr Deposit Liability / Cr Other Income — ${account?.accountNumber}`,
+      }];
+      const postingDate = new Date().toISOString().substring(0, 10);
+      const batch = buildDailySummaryBatch(transactions, glMappings, postingDate, SAP_CORE.COMPANY_CODE);
+      const payload = buildJournalEntryPayload(batch, batch.lines || []);
+      const result = await postJournalEntry(payload, ID);
+      if (result.success) {
+        await db.run(UPDATE('sains.ar.DepositRecord').set({
+          glStatus: 'POSTED',
+          glPostedAt: new Date().toISOString(),
+          refundAPPostingRef: result.documentNumber,
+        }).where({ ID }));
+      }
+    } catch (err) {
+      logger.error(`Deposit forfeit GL posting failed for ${ID}: ${err.message}`);
+      await db.run(UPDATE('sains.ar.DepositRecord').set({
+        glStatus: 'FAILED',
+        glPostingError: err.message.substring(0, 255),
+      }).where({ ID }));
+    }
+
+    return true;
+  });
+
+  srv.on('requestTopUp', 'DepositRecords', async (req) => {
+    const ID = req.params[0]?.ID ?? req.params[0];
+    const db = await cds.connect.to('db');
+
+    const deposit = await db.run(SELECT.one.from('sains.ar.DepositRecord').where({ ID }));
+    if (!deposit) return req.error(404, 'Deposit not found');
+
+    const today = new Date().toISOString().split('T')[0];
+    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    await db.run(UPDATE('sains.ar.DepositRecord').set({
+      topUpRequestedDate: today,
+      topUpDueDate: dueDate,
+    }).where({ ID }));
+
+    await logAction(req, 'REQUEST_TOP_UP', 'DepositRecord', ID, null,
+      { topUpRequestedDate: today, topUpDueDate: dueDate }, deposit.account_ID);
+    return true;
+  });
 };
+
+const REQUIRED_DEPOSIT = { DOM: 100, COM_S: 500, COM_L: 2000, IND: 5000, GOV: 10000, INST: 1000 };
+
+async function runAnnualDepositReview() {
+  const db = await cds.connect.to('db');
+  const today = new Date().toISOString().split('T')[0];
+  const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  const nextYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const deposits = await db.run(
+    SELECT.from('sains.ar.DepositRecord').where({
+      status: DEPOSIT_STATUS.HELD,
+      or: [
+        { nextReviewDate: { '<=': today } },
+        { and: [{ lastReviewDate: null }, { depositDate: { '<=': oneYearAgo } }] },
+      ],
+    })
+  );
+
+  let reviewed = 0, shortfalls = 0, adequate = 0;
+
+  for (const deposit of deposits) {
+    const account = await db.run(
+      SELECT.one.from('sains.ar.CustomerAccount')
+        .columns('accountType_code')
+        .where({ ID: deposit.account_ID })
+    );
+
+    const accountType = account?.accountType_code || 'DOM';
+    const required = REQUIRED_DEPOSIT[accountType] || 100;
+    const actual = Number(deposit.amount || 0);
+    const shortfall = required - actual;
+
+    if (shortfall > 0) {
+      shortfalls++;
+      await db.run(INSERT.into('sains.ar.AccountNote').entries({
+        ID: cds.utils.uuid(),
+        account_ID: deposit.account_ID,
+        noteDate: new Date().toISOString(),
+        noteType: 'DEPOSIT_SHORTFALL',
+        noteText: `Annual deposit review: shortfall of RM${shortfall.toFixed(2)} (required RM${required}, held RM${actual.toFixed(2)}) for deposit ${deposit.ID}`,
+        isInternal: true,
+      }));
+    } else {
+      adequate++;
+    }
+
+    await db.run(UPDATE('sains.ar.DepositRecord').set({
+      lastReviewDate: today,
+      nextReviewDate: nextYear,
+    }).where({ ID: deposit.ID }));
+
+    reviewed++;
+  }
+
+  logger.info(`Annual deposit review: ${reviewed} reviewed, ${shortfalls} shortfalls, ${adequate} adequate`);
+  return { reviewed, shortfalls, adequate };
+}
+
+module.exports.runAnnualDepositReview = runAnnualDepositReview;

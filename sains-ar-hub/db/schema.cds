@@ -448,6 +448,7 @@ entity DepositRecord : cuid, managed {
   appliedDate       : Date;
   appliedApprovedBy : UserID;
   lastReviewDate    : Date;          // DEP-6.5 annual review
+  nextReviewDate    : Date;
   topUpRequestedDate: Date;
   topUpDueDate      : Date;
   dormancyNotice1SentAt: DateTime;

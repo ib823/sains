@@ -47,10 +47,17 @@ service ProvisionReportingService @(path:'/provision') {
 
     @(requires:['CFO'])
     action confirmLodgement(lodgementRef: String(50)) returns Boolean;
+
+    @(requires:['FinanceManager','CFO'])
+    action initiateTransferToRegistrar() returns Boolean;
   };
 
-  @readonly
-  entity DepositLiabilityEntries as projection on prov.DepositLiabilityEntry;
+  @(requires:['FinanceManager','CFO'])
+  entity DepositLiabilityEntries as projection on prov.DepositLiabilityEntry
+  actions {
+    @(requires:['FinanceManager'])
+    action confirmTransfer(registrarRef: String(50)) returns Boolean;
+  };
 
   @(requires:['FinanceManager','CFO','Auditor'])
   entity AuditorConfirmationLetters as projection on prov.AuditorConfirmationLetter

@@ -119,6 +119,9 @@ entity DepositLiabilityEntry : cuid {
   isDormant            : Boolean default false;
   lastContactDate      : Date;
   noticesSent          : Integer default 0;
+  registrarRef         : String(50);
+  transferDate         : Date;
+  transferStatus       : String(20) default 'PENDING'; // PENDING | INITIATED | TRANSFERRED
 }
 
 entity AuditorConfirmationLetter : cuid, managed {

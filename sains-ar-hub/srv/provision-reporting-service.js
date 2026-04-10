@@ -173,6 +173,50 @@ module.exports = cds.service.impl(async function () {
     return true;
   });
 
+  this.on('initiateTransferToRegistrar', 'DepositLiabilityRegisters', async (req) => {
+    const { ID } = req.params[0];
+
+    const register = await SELECT.one.from(DepositLiabilityRegister).where({ ID });
+    if (!register) return req.error(404, 'Deposit liability register not found');
+    if (register.status === 'TRANSFER_INITIATED') {
+      return req.error(409, 'Transfer already initiated for this register');
+    }
+
+    await UPDATE(DepositLiabilityRegister).set({
+      status: 'TRANSFER_INITIATED',
+    }).where({ ID });
+
+    await UPDATE(DepositLiabilityEntry).set({
+      transferStatus: 'INITIATED',
+    }).where({ register_ID: ID });
+
+    await logAction(req, 'DEPOSIT_TRANSFER_INITIATED', 'DepositLiabilityRegister', ID, {});
+
+    logger.info(`Deposit liability register ${ID}: transfer to registrar initiated`);
+    return true;
+  });
+
+  this.on('confirmTransfer', 'DepositLiabilityEntries', async (req) => {
+    const { ID } = req.params[0];
+    const { registrarRef } = req.data;
+
+    const entry = await SELECT.one.from(DepositLiabilityEntry).where({ ID });
+    if (!entry) return req.error(404, 'Deposit liability entry not found');
+
+    const today = new Date().toISOString().split('T')[0];
+
+    await UPDATE(DepositLiabilityEntry).set({
+      transferDate: today,
+      registrarRef,
+      transferStatus: 'TRANSFERRED',
+    }).where({ ID });
+
+    await logAction(req, 'DEPOSIT_TRANSFER_CONFIRMED', 'DepositLiabilityEntry', ID, { registrarRef, transferDate: today });
+
+    logger.info(`Deposit liability entry ${ID}: transfer confirmed, registrarRef=${registrarRef}`);
+    return true;
+  });
+
   // ── AUDITOR CONFIRMATION LETTERS ────────────────────────────────────
 
   this.on('recordResponse', 'AuditorConfirmationLetters', async (req) => {

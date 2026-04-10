@@ -39,6 +39,18 @@ async function importBankStatement(fileBuffer, format, bankCode, uploadedBy) {
     throw new Error(`Unsupported bank statement format: ${format}`);
   }
 
+  // Validate statement balance
+  let statementStatus = 'IMPORTED';
+  const calculatedClosing = openingBalance
+    + parsedLines.filter(l => l.debitCreditCode === 'C').reduce((s, l) => s + Number(l.amount || 0), 0)
+    - parsedLines.filter(l => l.debitCreditCode === 'D').reduce((s, l) => s + Number(l.amount || 0), 0);
+
+  const diff = Math.abs(calculatedClosing - closingBalance);
+  if (diff > 0.01) {
+    logger.warn(`Bank statement ${bankCode}: balance mismatch! Opening ${openingBalance} + txns = ${calculatedClosing.toFixed(2)}, stated closing = ${closingBalance}`);
+    statementStatus = 'UNBALANCED';
+  }
+
   const statementID = cds.utils.uuid();
   const maskedAccount = accountNumber.length > 4
     ? 'XXXX' + accountNumber.substring(accountNumber.length - 4)
@@ -52,7 +64,7 @@ async function importBankStatement(fileBuffer, format, bankCode, uploadedBy) {
     format,
     openingBalance,
     closingBalance,
-    status: 'IMPORTED',
+    status: statementStatus,
     totalCredits: parsedLines.filter(l => l.debitCreditCode === 'C')
       .reduce((s, l) => s + l.amount, 0),
     totalDebits: parsedLines.filter(l => l.debitCreditCode === 'D')
@@ -74,7 +86,7 @@ async function importBankStatement(fileBuffer, format, bankCode, uploadedBy) {
     UPDATE('sains.ar.BankStatementImport').set({
       matchedCount,
       unmatchedCount: parsedLines.length - matchedCount,
-      status: unmatchedCount === 0 ? 'MATCHED' : 'MATCHING',
+      status: statementStatus === 'UNBALANCED' ? 'UNBALANCED' : (unmatchedCount === 0 ? 'MATCHED' : 'MATCHING'),
     }).where({ ID: statementID })
   );
 
